@@ -26,6 +26,8 @@ int main(int argc, char *argv[]) {
     queue* directories = queue_empty();
 
     //parse flags in argument
+    //getopt verkar leta åt flaggor i argumentraden och lägger de i nån slags struktur
+    //getint skapas...de är en int som pekar på n'ästa arg efter flaggorna
     while ((flag = getopt(argc, argv, "t:p:")) != -1) {
         switch (flag) {
             case 't':
@@ -38,6 +40,7 @@ int main(int argc, char *argv[]) {
                 }
                 break;
             case 'p':
+                //atoi gör om t.ex 4 och 0 till 40 om man skrivit att man vill ha 40 trådar
                 nrthr = atoi(optarg);
                 if(nrthr == 0){
                     fprintf(stderr, "Invalid parameters!\n"
@@ -53,13 +56,16 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
         }
     }
-
+    //här är optind igen...lite skit för att få användaren att stoppa in rätt mängd argument
+    //mycke är lånat från lorre
     if (argc - 1 == optind || optind >= argc){
         fprintf(stderr, "Invalid parameters!\n"
                 "Usage: mfind [-t type] [-p nrthr] start1"
                 " [start2 ...] name\n");
         exit(EXIT_FAILURE);
     }
+    //funktionerna...under dom finns lite utskrifter om man vill undersöka flaggornas värde
+    //men dom verka funka...tror man kan komma åt dom via optarg
     getDir(argc, argv, optind, directories, &name);
     search((char)name, directories);//todo tråda iväg skiten nrthr ggroch snöra ihop sen
     /*printf("\ntypeFlag: %s\nnrOfThreadFlag: %d ", &type, nrthr);
@@ -79,48 +85,55 @@ int main(int argc, char *argv[]) {
 
 }
 void search(char name, queue* directories){
+    //struktur där man kan spara ner folders
     DIR *dir;
+    //2 till strukturer där man kan lagra ner filer för att få info om dom
     struct dirent *ent;
     struct stat st;
     char* path;
     char* filename;
 
     while(!queue_isEmpty(directories)){//todo mutex på kön
-
+        //spårutskrift för när den börjar bearbeta en mapp
         printf("\n*** %s ***\n", (char *)queue_front(directories));
         path = queue_front(directories);
         queue_dequeue(directories);
-                                                //todo mutex av
+        //opendir öppnar en folder från sträng                                        //todo mutex av
         if (dir = opendir(path)) {
-
+            //readdir dundrar igenom nästa fil i en folder och sparar i en struct dirent
             /* print all the files and directories within directory */
             while ((ent = readdir(dir)) != NULL) {
                 filename = malloc(strlen(path) + strlen(ent->d_name));
                 strcpy(filename, path);
+                //addera filnamnet på katalogpathen
                 strcat(filename, ent->d_name);
 
-
+                //lstat sparar ner info i en liknande struktur som dirent...fast den har lite annan info
+                //kanske nån är överflödig men ja tror fan de krävs båda för
+                //att få ut allt man vill ha
                 if(lstat(filename, &st) != -1){ //todo lstat är röd? wierd IDE eller nån störd include som saknas
                 }else{
                     perror("lstat: ");
                 }
                 printf ("\nfilename: %s\n", ent->d_name);
+                //S_ISLINK och dom andra kollar om filen är link, fil eller dir
                 if(S_ISLNK(st.st_mode)) {
-                    printf("Type: Symbolic link\n");  //todo syla in i resultatlista (mutex av och på den)
+                    printf("Type: Symbolic link\n");  //todo skriva ut resultat korrekt
                     printf("Path: %s\n", filename);
                 }
                 else if(S_ISDIR(st.st_mode)){
-                    printf ("Type: Directory\n");     //todo syla in i kön(mutex) om de inte är den dir man letar då resultatlista(mutex på den)
+                    printf ("Type: Directory\n");     //todo skriva ut resultat korrekt
                     printf("path: %s\n", filename);
+                    //om de är en dir och inte är . eller .. så ska den addera till kön o bränna av en ny opendir
                     if(strcmp(ent->d_name, (char *) ".") != 0 &&
                             strcmp(ent->d_name, (char *) "..") != 0){
-                        strcat(filename, "/"); //todo meka med allokeringen...verkar vara wiesse
-                        printf("***köar på: %s\n", filename);
-                        queue_enqueue(directories, filename);
+                        strcat(filename, "/");
+                        printf("***köar på: %s\n", filename); //todo mutex på kön
+                        queue_enqueue(directories, filename);//todo mutex av
                     }
                 }
                 else if(S_ISREG(st.st_mode)){
-                    printf ("Type: File\n");        //todo syla in i resultatlistan (mutex av och på)
+                    printf ("Type: File\n");        //todo skriva ut resultat korrekt
                     printf("path: %s\n", filename);
                 }
                 //free(filename);//todo +ade på 1 i malloc...ser ut att funka men bör undersökas
