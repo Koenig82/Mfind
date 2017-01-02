@@ -24,6 +24,7 @@ int main(int argc, char *argv[]) {
     int matchSet = false;
     char* name;
     queue* directories = queue_empty();
+    //queue_setMemHandler(directories, free);
 
     //parse flags in argument
     //getopt verkar leta åt flaggor i argumentraden och lägger de i nån slags struktur
@@ -95,7 +96,7 @@ void search(char* name, queue* directories){
 
     while(!queue_isEmpty(directories)){//todo mutex på kön
         //spårutskrift för när den börjar bearbeta en mapp
-        printf("\n*** %s ***\n", (char *)queue_front(directories));
+        printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(directories));
         path = malloc(strlen(queue_front(directories)) + 1);
         strcpy(path, queue_front(directories));
         //free(queue_front(directories));
@@ -159,7 +160,7 @@ void search(char* name, queue* directories){
 void getDir(int argc, char **argv, int nrArg, queue* directories, char** name){
 
     for(; nrArg < (argc-1); nrArg++){
-        printf("%s\n", argv[nrArg]);
+        printf(">>>>Köar på: %s\n", argv[nrArg]);
         queue_enqueue(directories, argv[nrArg]);
     }
     *name = argv[nrArg];
