@@ -69,6 +69,7 @@ int main(int argc, char *argv[]) {
     //men dom verka funka...tror man kan komma åt dom via optarg
     getDir(argc, argv, optind, directories, &name);
     search(name, directories);//todo tråda iväg skiten nrthr ggroch snöra ihop sen
+    queue_free(directories);
     /*printf("\ntypeFlag: %s\nnrOfThreadFlag: %d ", &type, nrthr);
     while(!queue_isEmpty(directories)){
         printf("\nDirectory: %s ", (char *) queue_front(directories));
@@ -99,7 +100,7 @@ void search(char* name, queue* directories){
         printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(directories));
         path = malloc(strlen(queue_front(directories)) + 1);
         strcpy(path, queue_front(directories));
-        //free(queue_front(directories));
+        free(queue_front(directories));
         queue_dequeue(directories); //todo fixa minnesläckor
         //opendir öppnar en folder från sträng                                        //todo mutex av
         dir = opendir(path);
@@ -107,7 +108,7 @@ void search(char* name, queue* directories){
             //readdir dundrar igenom nästa fil i en folder och sparar i en struct dirent
             /* print all the files and directories within directory */
             while ((ent = readdir(dir)) != NULL) {
-                filename = malloc(strlen(path) + strlen(ent->d_name)+2);
+                filename = malloc(strlen(path) + strlen(ent->d_name) +2);
                 strcpy(filename, path);
                 //addera filnamnet på katalogpathen
                 strcat(filename, ent->d_name);
@@ -161,7 +162,9 @@ void getDir(int argc, char **argv, int nrArg, queue* directories, char** name){
 
     for(; nrArg < (argc-1); nrArg++){
         printf(">>>>Köar på: %s\n", argv[nrArg]);
-        queue_enqueue(directories, argv[nrArg]);
+        char* path = malloc(strlen(argv[nrArg])+1);
+        strcpy(path, argv[nrArg]);
+        queue_enqueue(directories, path);
     }
     *name = argv[nrArg];
 }
