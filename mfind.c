@@ -14,7 +14,7 @@
 
 
 void getDir(int argc, char **argv, int nrArg, queue* directories, char** name);
-void search(char name, queue* directories);
+void search(char* name, queue* directories);
 
 int main(int argc, char *argv[]) {
 
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     //funktionerna...under dom finns lite utskrifter om man vill undersöka flaggornas värde
     //men dom verka funka...tror man kan komma åt dom via optarg
     getDir(argc, argv, optind, directories, &name);
-    search((char)name, directories);//todo tråda iväg skiten nrthr ggroch snöra ihop sen
+    search(name, directories);//todo tråda iväg skiten nrthr ggroch snöra ihop sen
     /*printf("\ntypeFlag: %s\nnrOfThreadFlag: %d ", &type, nrthr);
     while(!queue_isEmpty(directories)){
         printf("\nDirectory: %s ", (char *) queue_front(directories));
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
 //    skriv resultat
 
 }
-void search(char name, queue* directories){
+void search(char* name, queue* directories){
     //struktur där man kan spara ner folders
     DIR *dir;
     //2 till strukturer där man kan lagra ner filer för att få info om dom
@@ -96,14 +96,17 @@ void search(char name, queue* directories){
     while(!queue_isEmpty(directories)){//todo mutex på kön
         //spårutskrift för när den börjar bearbeta en mapp
         printf("\n*** %s ***\n", (char *)queue_front(directories));
-        path = queue_front(directories);
-        queue_dequeue(directories);
+        path = malloc(strlen(queue_front(directories)) + 1);
+        strcpy(path, queue_front(directories));
+        //free(queue_front(directories));
+        queue_dequeue(directories); //todo fixa minnesläckor
         //opendir öppnar en folder från sträng                                        //todo mutex av
-        if (dir = opendir(path)) {
+        dir = opendir(path);
+        if (dir) {
             //readdir dundrar igenom nästa fil i en folder och sparar i en struct dirent
             /* print all the files and directories within directory */
             while ((ent = readdir(dir)) != NULL) {
-                filename = malloc(strlen(path) + strlen(ent->d_name));
+                filename = malloc(strlen(path) + strlen(ent->d_name)+2);
                 strcpy(filename, path);
                 //addera filnamnet på katalogpathen
                 strcat(filename, ent->d_name);
@@ -113,7 +116,9 @@ void search(char name, queue* directories){
                 //att få ut allt man vill ha
                 if(lstat(filename, &st) != -1){ //todo lstat är röd? wierd IDE eller nån störd include som saknas
                 }else{
+                    fprintf(stderr,"%s", path);
                     perror("lstat: ");
+                    fflush(stderr);
                 }
                 printf ("\nfilename: %s\n", ent->d_name);
                 //S_ISLINK och dom andra kollar om filen är link, fil eller dir
@@ -126,24 +131,28 @@ void search(char name, queue* directories){
                     printf("path: %s\n", filename);
                     //om de är en dir och inte är . eller .. så ska den addera till kön o bränna av en ny opendir
                     if(strcmp(ent->d_name, (char *) ".") != 0 &&
-                            strcmp(ent->d_name, (char *) "..") != 0){
-                        strcat(filename, "/");
+                            strcmp(ent->d_name, (char *) "..") != 0) {
+                        strcat(filename, (char *) "/");
                         printf("***köar på: %s\n", filename); //todo mutex på kön
                         queue_enqueue(directories, filename);//todo mutex av
+                        continue;
                     }
                 }
                 else if(S_ISREG(st.st_mode)){
                     printf ("Type: File\n");        //todo skriva ut resultat korrekt
                     printf("path: %s\n", filename);
                 }
-                //free(filename);//todo +ade på 1 i malloc...ser ut att funka men bör undersökas
+                free(filename);
             }
             closedir (dir);
-            free(filename);
+            //free(filename);
         } else {
             /* could not open directory */
-            perror("opendir: ");
+            fprintf(stderr, "%s", path);
+            perror("opendir:");
+            fflush(stderr);
         }
+        free(path);
     }
 }
 
