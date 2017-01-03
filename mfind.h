@@ -7,4 +7,4 @@ typedef struct threadArg{
     char* filter;
 }threadArg;
 void getDir(int argc, char **argv, int nrArg, threadArg* arg);
-void search(threadArg* arg);
+void* search(void* arg);

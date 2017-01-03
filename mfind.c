@@ -5,6 +5,8 @@
 #include <string.h>
 #include "mfind.h"
 #include <sys/stat.h>
+#include <pthread.h>
+
 
 int main(int argc, char *argv[]) {
 
@@ -12,8 +14,8 @@ int main(int argc, char *argv[]) {
     int flag;
     int nrthr = 0;
     int matchSet = false;
-    threadArg arg;
-    arg.directories = queue_empty();
+    threadArg* arg = malloc(sizeof(threadArg));
+    arg->directories = queue_empty();
     char flagtype;
     //queue* directories = queue_empty();
     //queue_setMemHandler(directories, free);
@@ -59,14 +61,29 @@ int main(int argc, char *argv[]) {
     }
     //funktionerna...under dom finns lite utskrifter om man vill undersöka flaggornas värde
     //men dom verka funka...tror man kan komma åt dom via optarg
-    getDir(argc, argv, optind, &arg);
+    getDir(argc, argv, optind, arg);
+
+    pthread_t threads[nrthr];
+    threads[0] = pthread_self();
+    for(int i = 1; i < nrthr; i++){
+        if(pthread_create(&threads[i], NULL, search, (void*)arg)){
+            perror("pthread\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+
     search(&arg);//todo tråda iväg skiten nrthr ggroch snöra ihop sen
-    queue_free(arg.directories);
-    printf("\n%s", arg.filter);
+    for(int i = 1; i < nrthr;i++){
+        if(pthread_join(threads[i], NULL)){
+            perror("pthread_join");
+        }
+    }
+    queue_free(arg->directories);
+    printf("\n%s", arg->filter);
 
     printf("\ntypeFlag: %c\nnrOfThreadFlag: %d ", flagtype, nrthr);
 
-    printf("\nsearchFor: %s", arg.filter);
+    printf("\nsearchFor: %s", arg->filter);
 
 
 //    p_thread
@@ -77,7 +94,7 @@ int main(int argc, char *argv[]) {
 //    skriv resultat
 
 }
-void search(threadArg* arg){
+void* search(void* args){
     //struktur där man kan spara ner folders
     DIR *dir;
     //2 till strukturer där man kan lagra ner filer för att få info om dom
@@ -86,13 +103,16 @@ void search(threadArg* arg){
     char* path;
     char* filename;
 
-    while(!queue_isEmpty(arg->directories)){//todo mutex på kön
+    threadArg* arg = (threadArg*)args;
+
+    while(pthread_mutex_lock((pthread_mutex_t *) arg->directories) && !queue_isEmpty(arg->directories)){//todo mutex på kön
         //spårutskrift för när den börjar bearbeta en mapp
         printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(arg->directories));
         path = malloc(strlen(queue_front(arg->directories)) + 1);
         strcpy(path, queue_front(arg->directories));
         free(queue_front(arg->directories));
         queue_dequeue(arg->directories);
+        //pthread_mutex_unlock((pthread_mutex_t *) arg->directories);
         //opendir öppnar en folder från sträng    //todo mutex av
         dir = opendir(path);
         if (dir) {
@@ -127,7 +147,9 @@ void search(threadArg* arg){
                             strcmp(ent->d_name, (char *) "..") != 0) {
                         strcat(filename, (char *) "/");
                         printf("***köar på: %s\n", filename); //todo mutex på kön
+                        pthread_mutex_lock((pthread_mutex_t *) arg->directories);
                         queue_enqueue(arg->directories, filename);//todo mutex av
+                        pthread_mutex_unlock((pthread_mutex_t *) arg->directories);
                         continue;
                     }
                 }
@@ -159,3 +181,21 @@ void getDir(int argc, char **argv, int nrArg, threadArg* arg){
     printf("\n ----------------   %s", argv[nrArg]);
     arg->filter = argv[nrArg];
 }
+
+/*for(i = 0; i < runOpts->nrthr-1; i++){
+//args = malloc(sizeof(ThreadStruct));
+ThreadStruct *args = malloc(sizeof(ThreadStruct));
+if(args == NULL){
+fprintf(stderr, "could not malloc. process will terminate\n");
+exit(EXIT_FAILURE);
+}
+int tIndex;
+tIndex = i+1;
+args->thrdIndex = tIndex;
+args->dQueue = runOpts->dQueue;
+args->name = runOpts->name;
+args->type = runOpts->type;
+args->nrthr = runOpts->nrthr;
+args->searchedFolders = 0;
+pthread_create(&tids[i], NULL , threadSearch, (void*)args);
+}*/
