@@ -4,17 +4,7 @@
 #include <getopt.h>
 #include <string.h>
 #include "mfind.h"
-#include "queue.h"
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
-
-
-
-
-void getDir(int argc, char **argv, int nrArg, queue* directories, char** name);
-void search(char* name, queue* directories);
 
 int main(int argc, char *argv[]) {
 
@@ -22,8 +12,10 @@ int main(int argc, char *argv[]) {
     int flag;
     int nrthr = 0;
     int matchSet = false;
-    char* name;
-    queue* directories = queue_empty();
+    threadArg arg;
+    arg.directories = queue_empty();
+    char flagtype;
+    //queue* directories = queue_empty();
     //queue_setMemHandler(directories, free);
 
     //parse flags in argument
@@ -32,8 +24,8 @@ int main(int argc, char *argv[]) {
     while ((flag = getopt(argc, argv, "t:p:")) != -1) {
         switch (flag) {
             case 't':
-                //flagtype = *optarg;
-                if(*optarg != 'd' && *optarg != 'f' && *optarg != 'l'){
+                flagtype = *optarg;
+                if(flagtype != 'd' && flagtype != 'f' && flagtype != 'l'){
                     fprintf(stderr, "Invalid parameters!\n"
                             "Usage: mfind [-t type] [-p nrthr] start1"
                             " [start2 ...] name\n");
@@ -67,15 +59,14 @@ int main(int argc, char *argv[]) {
     }
     //funktionerna...under dom finns lite utskrifter om man vill undersöka flaggornas värde
     //men dom verka funka...tror man kan komma åt dom via optarg
-    getDir(argc, argv, optind, directories, &name);
-    search(name, directories);//todo tråda iväg skiten nrthr ggroch snöra ihop sen
-    queue_free(directories);
-    /*printf("\ntypeFlag: %s\nnrOfThreadFlag: %d ", &type, nrthr);
-    while(!queue_isEmpty(directories)){
-        printf("\nDirectory: %s ", (char *) queue_front(directories));
-        queue_dequeue(directories);
-    }
-    printf("\nsearchFor: %s", name);*/
+    getDir(argc, argv, optind, &arg);
+    search(&arg);//todo tråda iväg skiten nrthr ggroch snöra ihop sen
+    queue_free(arg.directories);
+    printf("\n%s", arg.filter);
+
+    printf("\ntypeFlag: %c\nnrOfThreadFlag: %d ", flagtype, nrthr);
+
+    printf("\nsearchFor: %s", arg.filter);
 
 
 //    p_thread
@@ -86,7 +77,7 @@ int main(int argc, char *argv[]) {
 //    skriv resultat
 
 }
-void search(char* name, queue* directories){
+void search(threadArg* arg){
     //struktur där man kan spara ner folders
     DIR *dir;
     //2 till strukturer där man kan lagra ner filer för att få info om dom
@@ -95,14 +86,14 @@ void search(char* name, queue* directories){
     char* path;
     char* filename;
 
-    while(!queue_isEmpty(directories)){//todo mutex på kön
+    while(!queue_isEmpty(arg->directories)){//todo mutex på kön
         //spårutskrift för när den börjar bearbeta en mapp
-        printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(directories));
-        path = malloc(strlen(queue_front(directories)) + 1);
-        strcpy(path, queue_front(directories));
-        free(queue_front(directories));
-        queue_dequeue(directories); //todo fixa minnesläckor
-        //opendir öppnar en folder från sträng                                        //todo mutex av
+        printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(arg->directories));
+        path = malloc(strlen(queue_front(arg->directories)) + 1);
+        strcpy(path, queue_front(arg->directories));
+        free(queue_front(arg->directories));
+        queue_dequeue(arg->directories);
+        //opendir öppnar en folder från sträng    //todo mutex av
         dir = opendir(path);
         if (dir) {
             //readdir dundrar igenom nästa fil i en folder och sparar i en struct dirent
@@ -136,7 +127,7 @@ void search(char* name, queue* directories){
                             strcmp(ent->d_name, (char *) "..") != 0) {
                         strcat(filename, (char *) "/");
                         printf("***köar på: %s\n", filename); //todo mutex på kön
-                        queue_enqueue(directories, filename);//todo mutex av
+                        queue_enqueue(arg->directories, filename);//todo mutex av
                         continue;
                     }
                 }
@@ -147,7 +138,6 @@ void search(char* name, queue* directories){
                 free(filename);
             }
             closedir (dir);
-            //free(filename);
         } else {
             /* could not open directory */
             fprintf(stderr, "%s", path);
@@ -158,13 +148,14 @@ void search(char* name, queue* directories){
     }
 }
 
-void getDir(int argc, char **argv, int nrArg, queue* directories, char** name){
+void getDir(int argc, char **argv, int nrArg, threadArg* arg){
 
     for(; nrArg < (argc-1); nrArg++){
         printf(">>>>Köar på: %s\n", argv[nrArg]);
         char* path = malloc(strlen(argv[nrArg])+1);
         strcpy(path, argv[nrArg]);
-        queue_enqueue(directories, path);
+        queue_enqueue(arg->directories, path);
     }
-    *name = argv[nrArg];
+    printf("\n ----------------   %s", argv[nrArg]);
+    arg->filter = argv[nrArg];
 }
