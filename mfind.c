@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <pthread.h>
 
-
+pthread_mutex_t mutex;
 int main(int argc, char *argv[]) {
 
     //variables
@@ -105,14 +105,14 @@ void* search(void* args){
 
     threadArg* arg = (threadArg*)args;
 
-    while(pthread_mutex_lock((pthread_mutex_t *) arg->directories) && !queue_isEmpty(arg->directories)){//todo mutex på kön
+    while(!pthread_mutex_lock(&mutex) && !queue_isEmpty(arg->directories)){//todo mutex på kön
         //spårutskrift för när den börjar bearbeta en mapp
         printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(arg->directories));
         path = malloc(strlen(queue_front(arg->directories)) + 1);
         strcpy(path, queue_front(arg->directories));
         free(queue_front(arg->directories));
         queue_dequeue(arg->directories);
-        pthread_mutex_unlock((pthread_mutex_t *) arg->directories);
+        pthread_mutex_unlock(&mutex);
         //opendir öppnar en folder från sträng    //todo mutex av
         dir = opendir(path);
         if (dir) {
@@ -147,9 +147,9 @@ void* search(void* args){
                             strcmp(ent->d_name, (char *) "..") != 0) {
                         strcat(filename, (char *) "/");
                         printf("***köar på: %s\n", filename); //todo mutex på kön
-                        pthread_mutex_lock((pthread_mutex_t *) arg->directories);
+                        pthread_mutex_lock(&mutex);
                         queue_enqueue(arg->directories, filename);//todo mutex av
-                        pthread_mutex_unlock((pthread_mutex_t *) arg->directories);
+                        pthread_mutex_unlock(&mutex);
                         continue;
                     }
                 }
