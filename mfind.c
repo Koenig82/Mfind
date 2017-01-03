@@ -102,16 +102,22 @@ void* search(void* args){
     struct stat st;
     char* path;
     char* filename;
-
+    bool running = true;
     threadArg* arg = (threadArg*)args;
 
-    while(!pthread_mutex_lock(&mutex) && !queue_isEmpty(arg->directories)){//todo mutex på kön
+    while(running){//todo mutex på kön
         //spårutskrift för när den börjar bearbeta en mapp
-        printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(arg->directories));
-        path = malloc(strlen(queue_front(arg->directories)) + 1);
-        strcpy(path, queue_front(arg->directories));
-        free(queue_front(arg->directories));
-        queue_dequeue(arg->directories);
+        pthread_mutex_lock(&mutex);
+        if(!queue_isEmpty(arg->directories)){
+            printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(arg->directories));
+            path = malloc(strlen(queue_front(arg->directories)) + 1);
+            strcpy(path, queue_front(arg->directories));
+            free(queue_front(arg->directories));
+            queue_dequeue(arg->directories);
+        }else{
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
         pthread_mutex_unlock(&mutex);
         //opendir öppnar en folder från sträng    //todo mutex av
         dir = opendir(path);
@@ -160,6 +166,7 @@ void* search(void* args){
                 free(filename);
             }
             closedir (dir);
+            //pthread_mutex_lock(&mutex);yfkhfkh
         } else {
             /* could not open directory */
             fprintf(stderr, "%s", path);
