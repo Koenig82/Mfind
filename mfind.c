@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    search(&arg);//todo tråda iväg skiten nrthr ggroch snöra ihop sen
+    search((void*)arg);//todo tråda iväg skiten nrthr ggroch snöra ihop sen
     for(int i = 1; i < nrthr;i++){
         if(pthread_join(threads[i], NULL)){
             perror("pthread_join");
@@ -112,7 +112,7 @@ void* search(void* args){
         strcpy(path, queue_front(arg->directories));
         free(queue_front(arg->directories));
         queue_dequeue(arg->directories);
-        //pthread_mutex_unlock((pthread_mutex_t *) arg->directories);
+        pthread_mutex_unlock((pthread_mutex_t *) arg->directories);
         //opendir öppnar en folder från sträng    //todo mutex av
         dir = opendir(path);
         if (dir) {
