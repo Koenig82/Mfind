@@ -5,18 +5,23 @@
 #include <string.h>
 #include "mfind.h"
 
+//pthread_mutex_t mutex;
+pthread_barrier_t barrier;
 
 int main(int argc, char *argv[]) {
 
     //variables
     int flag;
-    int nrthr = 0;
+    unsigned int nrthr = 0;
     int matchSet = false;
     int index;
 
     threadArg* arg = malloc(sizeof(threadArg));
     arg->directories = queue_empty();
     //context->arg = malloc(sizeof(threadArg));
+    pthread_mutex_t mutexLock;
+    arg->mutex = &mutexLock;
+    pthread_mutex_init(arg->mutex ,NULL);
 
     char flagtype;
     //queue* directories = queue_empty();
@@ -38,7 +43,7 @@ int main(int argc, char *argv[]) {
                 break;
             case 'p':
                 //atoi gör om t.ex 4 och 0 till 40 om man skrivit att man vill ha 40 trådar
-                nrthr = atoi(optarg);
+                nrthr = (unsigned int)atoi(optarg);
                 if(nrthr == 0){
                     fprintf(stderr, "Invalid parameters!\n"
                             "Usage: mfind [-t type] [-p nrthr] start1"
@@ -68,8 +73,12 @@ int main(int argc, char *argv[]) {
     threadContext context[nrthr];
     context[0].arg = arg;
     context[0].searched = 0;
+
+    pthread_barrier_t threadBarrier;
+    pthread_barrier_init(&threadBarrier, NULL, nrthr);
     pthread_t threads[nrthr];
     threads[0] = pthread_self();
+
     for(index = 1; index < nrthr; index++){
         context[index].arg = arg;
         context[index].searched = 0;
@@ -79,7 +88,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    search(&context[0]); //todo fixa context till trådar
+    search(&context[0]);
     for(index = 1; index < nrthr;index++){
         if(pthread_join(threads[index], NULL)){
             perror("pthread_join");
@@ -89,8 +98,9 @@ int main(int argc, char *argv[]) {
 
     printf("\nsearchFor: %s", arg->filter);
     for(index = 0; index < nrthr; index++){
-        printf("\nthread %d rearched: %d folders",index ,context[index]);
+        printf("\nthread %d rearched: %d folders",index ,context[index].searched);
     }
+    pthread_mutex_destroy(&mutexLock);
     queue_free(arg->directories);
     free(arg);
 
@@ -115,7 +125,8 @@ void* search(void* args){
 
     while(true){//todo mutex på kön
         //spårutskrift för när den börjar bearbeta en mapp
-        pthread_mutex_lock(&context->arg->mutex);
+        pthread_barrier_wait(context->arg->barrier);
+        pthread_mutex_lock(context->arg->mutex);
         if(!queue_isEmpty(context->arg->directories)){
             printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(context->arg->directories));
             path = malloc(strlen(queue_front(context->arg->directories)) + 1);
@@ -124,10 +135,10 @@ void* search(void* args){
             queue_dequeue(context->arg->directories);
             context->searched++;
         }else{
-            pthread_mutex_unlock(&context->arg->mutex);//todo vänta in alla trådar o kolla kön sen tuta igång om den inte är tom
+            pthread_mutex_unlock(context->arg->mutex);//todo vänta in alla trådar o kolla kön sen tuta igång om den inte är tom
             break;
         }
-        pthread_mutex_unlock(&context->arg->mutex);
+        pthread_mutex_unlock(context->arg->mutex);
         //opendir öppnar en folder från sträng
         dir = opendir(path);
         if (dir) {
@@ -142,7 +153,7 @@ void* search(void* args){
                 //lstat sparar ner info i en liknande struktur som dirent...fast den har lite annan info
                 //kanske nån är överflödig men ja tror fan de krävs båda för
                 //att få ut allt man vill ha
-                if(lstat(filename, &st) != -1){ //todo lstat är röd? wierd IDE eller nån störd include som saknas
+                if(lstat(filename, &st) != -1){
                 }else{
                     fprintf(stderr,"%s", path);
                     perror("lstat: ");
@@ -162,9 +173,9 @@ void* search(void* args){
                             strcmp(ent->d_name, (char *) "..") != 0) {
                         strcat(filename, (char *) "/");
                         printf("***köar på: %s\n", filename);
-                        pthread_mutex_lock(&context->arg->mutex);
+                        pthread_mutex_lock(context->arg->mutex);
                         queue_enqueue(context->arg->directories, filename);
-                        pthread_mutex_unlock(&context->arg->mutex);
+                        pthread_mutex_unlock(context->arg->mutex);
                         continue;
                     }
                 }
