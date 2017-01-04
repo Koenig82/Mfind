@@ -14,6 +14,7 @@ int main(int argc, char *argv[]) {
     int flag;
     int nrthr = 0;
     int matchSet = false;
+    int index;
 
     threadArg* arg = malloc(sizeof(threadArg));
     arg->directories = queue_empty();
@@ -71,26 +72,26 @@ int main(int argc, char *argv[]) {
     context[0].searched = 0;
     pthread_t threads[nrthr];
     threads[0] = pthread_self();
-    for(int i = 1; i < nrthr; i++){
-        context[i].arg = arg;
-        context[i].searched = 0;
-        if(pthread_create(&threads[i], NULL, search, (void*)&context[i])){
+    for(index = 1; index < nrthr; index++){
+        context[index].arg = arg;
+        context[index].searched = 0;
+        if(pthread_create(&threads[index], NULL, search, (void*)&context[index])){
             perror("pthread\n");
             exit(EXIT_FAILURE);
         }
     }
 
     search(&context[0]); //todo fixa context till trådar
-    for(int i = 1; i < nrthr;i++){
-        if(pthread_join(threads[i], NULL)){
+    for(index = 1; index < nrthr;index++){
+        if(pthread_join(threads[index], NULL)){
             perror("pthread_join");
         }
     }
     printf("\ntypeFlag: %c\nnrOfThreadFlag: %d ", flagtype, nrthr);
 
     printf("\nsearchFor: %s", arg->filter);
-    for(int i = 0; i < nrthr; i++){
-        printf("\nthread %d rearched: %d folders",i ,context[i]);
+    for(index = 0; index < nrthr; index++){
+        printf("\nthread %d rearched: %d folders",index ,context[index]);
     }
     queue_free(arg->directories);
     free(arg);
