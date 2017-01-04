@@ -4,10 +4,8 @@
 #include <getopt.h>
 #include <string.h>
 #include "mfind.h"
-#include <sys/stat.h>
-#include <pthread.h>
 
-pthread_mutex_t mutex;
+
 int main(int argc, char *argv[]) {
 
     //variables
@@ -117,7 +115,7 @@ void* search(void* args){
 
     while(true){//todo mutex på kön
         //spårutskrift för när den börjar bearbeta en mapp
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&context->arg->mutex);
         if(!queue_isEmpty(context->arg->directories)){
             printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(context->arg->directories));
             path = malloc(strlen(queue_front(context->arg->directories)) + 1);
@@ -126,10 +124,10 @@ void* search(void* args){
             queue_dequeue(context->arg->directories);
             context->searched++;
         }else{
-            pthread_mutex_unlock(&mutex);//todo vänta in alla trådar o kolla kön sen tuta igång om den inte är tom
+            pthread_mutex_unlock(&context->arg->mutex);//todo vänta in alla trådar o kolla kön sen tuta igång om den inte är tom
             break;
         }
-        pthread_mutex_unlock(&mutex);
+        pthread_mutex_unlock(&context->arg->mutex);
         //opendir öppnar en folder från sträng
         dir = opendir(path);
         if (dir) {
@@ -164,9 +162,9 @@ void* search(void* args){
                             strcmp(ent->d_name, (char *) "..") != 0) {
                         strcat(filename, (char *) "/");
                         printf("***köar på: %s\n", filename);
-                        pthread_mutex_lock(&mutex);
+                        pthread_mutex_lock(&context->arg->mutex);
                         queue_enqueue(context->arg->directories, filename);
-                        pthread_mutex_unlock(&mutex);
+                        pthread_mutex_unlock(&context->arg->mutex);
                         continue;
                     }
                 }
