@@ -101,6 +101,7 @@ int main(int argc, char *argv[]) {
         printf("\nthread %d rearched: %d folders",index ,context[index].searched);
     }
     pthread_mutex_destroy(&mutexLock);
+    pthread_barrier_destroy(&threadBarrier);
     queue_free(arg->directories);
     free(arg);
 
