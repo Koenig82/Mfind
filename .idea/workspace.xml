@@ -45,8 +45,8 @@
       <file leaf-file-name="mfind.c" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/mfind.c">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1746">
-              <caret line="188" column="30" selection-start-line="188" selection-start-column="30" selection-end-line="188" selection-end-column="30" />
+            <state relative-caret-position="-90">
+              <caret line="91" column="35" selection-start-line="91" selection-start-column="35" selection-end-line="91" selection-end-column="35" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -99,7 +99,7 @@
       <file leaf-file-name="queue.c" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/queue.c">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-454">
+            <state relative-caret-position="-306">
               <caret line="43" column="13" selection-start-line="43" selection-start-column="13" selection-end-line="43" selection-end-column="13" />
               <folding />
             </state>
@@ -109,8 +109,8 @@
       <file leaf-file-name="mfind.h" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/mfind.h">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="162">
-              <caret line="9" column="5" selection-start-line="9" selection-start-column="5" selection-end-line="9" selection-end-column="5" />
+            <state relative-caret-position="180">
+              <caret line="10" column="25" selection-start-line="10" selection-start-column="25" selection-end-line="10" selection-end-column="25" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -127,8 +127,8 @@
         <option value="$PROJECT_DIR$/semops.c" />
         <option value="$PROJECT_DIR$/semops.h" />
         <option value="$PROJECT_DIR$/list_2cell.h" />
-        <option value="$PROJECT_DIR$/mfind.h" />
         <option value="$PROJECT_DIR$/CMakeLists.txt" />
+        <option value="$PROJECT_DIR$/mfind.h" />
         <option value="$PROJECT_DIR$/mfind.c" />
       </list>
     </option>
@@ -359,7 +359,7 @@
       <option name="USE_KEYWORD" value="false" />
       <method />
     </configuration>
-    <configuration default="false" name="mfind" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-t dir -p 3  /home/konig/git/systemnara/mfind/ name" WORKING_DIR="" PASS_PARENT_ENVS_2="true" PROJECT_NAME="mfind" TARGET_NAME="mfind" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="mfind" RUN_TARGET_NAME="mfind">
+    <configuration default="false" name="mfind" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-t dir -p 4  /home/konig/git/systemnara/mfind/ name" WORKING_DIR="" PASS_PARENT_ENVS_2="true" PROJECT_NAME="mfind" TARGET_NAME="mfind" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="mfind" RUN_TARGET_NAME="mfind">
       <envs />
       <method />
     </configuration>
@@ -388,12 +388,12 @@
       <workItem from="1482924881943" duration="16863000" />
       <workItem from="1483024961285" duration="3469000" />
       <workItem from="1483042407463" duration="35953000" />
-      <workItem from="1483355491046" duration="37686000" />
+      <workItem from="1483355491046" duration="46916000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="93971000" />
+    <option name="totallyTimeSpent" value="103201000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="47" y="24" width="1319" height="744" extended-state="6" />
@@ -435,18 +435,8 @@
       <breakpoints>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/mfind.c</url>
-          <line>151</line>
+          <line>161</line>
           <option name="timeStamp" value="10" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
-          <url>file://$PROJECT_DIR$/mfind.c</url>
-          <line>66</line>
-          <option name="timeStamp" value="17" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
-          <url>file://$PROJECT_DIR$/mfind.c</url>
-          <line>74</line>
-          <option name="timeStamp" value="18" />
         </line-breakpoint>
       </breakpoints>
       <option name="time" value="19" />
@@ -624,29 +614,11 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/queue.c">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-454">
-          <caret line="43" column="13" selection-start-line="43" selection-start-column="13" selection-end-line="43" selection-end-column="13" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/queue.h">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="392">
           <caret line="22" column="17" selection-start-line="22" selection-start-column="17" selection-end-line="22" selection-end-column="17" />
           <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/mfind.h">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="162">
-          <caret line="9" column="5" selection-start-line="9" selection-start-column="5" selection-end-line="9" selection-end-column="5" />
-          <folding>
-            <element signature="e#0#18#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -666,10 +638,28 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/queue.c">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-306">
+          <caret line="43" column="13" selection-start-line="43" selection-start-column="13" selection-end-line="43" selection-end-column="13" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/mfind.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="180">
+          <caret line="10" column="25" selection-start-line="10" selection-start-column="25" selection-end-line="10" selection-end-column="25" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/mfind.c">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1746">
-          <caret line="188" column="30" selection-start-line="188" selection-start-column="30" selection-end-line="188" selection-end-column="30" />
+        <state relative-caret-position="-90">
+          <caret line="91" column="35" selection-start-line="91" selection-start-column="35" selection-end-line="91" selection-end-column="35" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>

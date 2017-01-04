@@ -14,8 +14,11 @@ int main(int argc, char *argv[]) {
     int flag;
     int nrthr = 0;
     int matchSet = false;
+
     threadArg* arg = malloc(sizeof(threadArg));
     arg->directories = queue_empty();
+    //context->arg = malloc(sizeof(threadArg));
+
     char flagtype;
     //queue* directories = queue_empty();
     //queue_setMemHandler(directories, free);
@@ -63,27 +66,34 @@ int main(int argc, char *argv[]) {
     //men dom verka funka...tror man kan komma åt dom via optarg
     getDir(argc, argv, optind, arg);
 
+    threadContext context[nrthr];
+    context[0].arg = arg;
+    context[0].searched = 0;
     pthread_t threads[nrthr];
     threads[0] = pthread_self();
     for(int i = 1; i < nrthr; i++){
-        if(pthread_create(&threads[i], NULL, search, (void*)arg)){
+        context[i].arg = arg;
+        context[i].searched = 0;
+        if(pthread_create(&threads[i], NULL, search, (void*)&context[i])){
             perror("pthread\n");
             exit(EXIT_FAILURE);
         }
     }
 
-    search((void*)arg);//todo tråda iväg skiten nrthr ggroch snöra ihop sen
+    search(&context[0]); //todo fixa context till trådar
     for(int i = 1; i < nrthr;i++){
         if(pthread_join(threads[i], NULL)){
             perror("pthread_join");
         }
     }
-    queue_free(arg->directories);
-    printf("\n%s", arg->filter);
-
     printf("\ntypeFlag: %c\nnrOfThreadFlag: %d ", flagtype, nrthr);
 
     printf("\nsearchFor: %s", arg->filter);
+    for(int i = 0; i < nrthr; i++){
+        printf("\nthread %d rearched: %d folders",i ,context[i]);
+    }
+    queue_free(arg->directories);
+    free(arg);
 
 
 //    p_thread
@@ -102,24 +112,24 @@ void* search(void* args){
     struct stat st;
     char* path;
     char* filename;
-    bool running = true;
-    threadArg* arg = (threadArg*)args;
+    threadContext* context = (threadContext*)args;
 
-    while(running){//todo mutex på kön
+    while(true){//todo mutex på kön
         //spårutskrift för när den börjar bearbeta en mapp
         pthread_mutex_lock(&mutex);
-        if(!queue_isEmpty(arg->directories)){
-            printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(arg->directories));
-            path = malloc(strlen(queue_front(arg->directories)) + 1);
-            strcpy(path, queue_front(arg->directories));
-            free(queue_front(arg->directories));
-            queue_dequeue(arg->directories);
+        if(!queue_isEmpty(context->arg->directories)){
+            printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(context->arg->directories));
+            path = malloc(strlen(queue_front(context->arg->directories)) + 1);
+            strcpy(path, queue_front(context->arg->directories));
+            free(queue_front(context->arg->directories));
+            queue_dequeue(context->arg->directories);
+            context->searched++;
         }else{
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex);//todo vänta in alla trådar o kolla kön sen tuta igång om den inte är tom
             break;
         }
         pthread_mutex_unlock(&mutex);
-        //opendir öppnar en folder från sträng    //todo mutex av
+        //opendir öppnar en folder från sträng
         dir = opendir(path);
         if (dir) {
             //readdir dundrar igenom nästa fil i en folder och sparar i en struct dirent
@@ -152,9 +162,9 @@ void* search(void* args){
                     if(strcmp(ent->d_name, (char *) ".") != 0 &&
                             strcmp(ent->d_name, (char *) "..") != 0) {
                         strcat(filename, (char *) "/");
-                        printf("***köar på: %s\n", filename); //todo mutex på kön
+                        printf("***köar på: %s\n", filename);
                         pthread_mutex_lock(&mutex);
-                        queue_enqueue(arg->directories, filename);//todo mutex av
+                        queue_enqueue(context->arg->directories, filename);
                         pthread_mutex_unlock(&mutex);
                         continue;
                     }
