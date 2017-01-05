@@ -8,8 +8,11 @@
 typedef struct threadArg{
     queue* directories;
     char* filter;
+    unsigned int* nrOfThreads;
+    int* waitLock;
     pthread_mutex_t* mutex;
     pthread_barrier_t* barrier;
+    pthread_cond_t* condition;
 }threadArg;
 
 typedef struct {
