@@ -11,7 +11,8 @@ typedef struct threadArg{
     unsigned int* nrOfThreads;
     int* waitLock;
     bool running;
-    pthread_mutex_t* mutex;
+    pthread_mutex_t* queueMut;
+    pthread_mutex_t* condMut;
     pthread_barrier_t* barrier;
     pthread_cond_t* condition;
 }threadArg;

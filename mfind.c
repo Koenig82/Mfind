@@ -16,9 +16,11 @@ int main(int argc, char *argv[]) {
     threadArg* arg = malloc(sizeof(threadArg));
     arg->directories = queue_empty();
 
-    pthread_mutex_t mutexLock;
-    arg->mutex = &mutexLock;
-    pthread_mutex_init(arg->mutex ,NULL);
+    pthread_mutex_t qMutex;
+    pthread_mutex_t cMutex;
+    arg->queueMut = &qMutex;
+    arg->condMut = &cMutex;
+    pthread_mutex_init(arg->queueMut ,NULL);
 
     pthread_cond_t cond;
     arg->condition = &cond;
@@ -105,7 +107,8 @@ int main(int argc, char *argv[]) {
     for(index = 0; index < nrthr; index++){
         printf("\nthread %ld rearched: %d folders",context[index].id ,context[index].searched);
     }
-    pthread_mutex_destroy(&mutexLock);
+    pthread_mutex_destroy(&qMutex);
+    pthread_mutex_destroy(&cMutex);
     pthread_barrier_destroy(&threadBarrier);
     pthread_cond_destroy(&cond);
     queue_free(arg->directories);
@@ -133,19 +136,20 @@ void* search(void* args){
     pthread_barrier_wait(context->shared->barrier);
 
     while(context->shared->running){
-        pthread_mutex_lock(context->shared->mutex);
+        pthread_mutex_lock(context->shared->queueMut);
         while(queue_isEmpty(context->shared->directories)){
-            pthread_mutex_unlock(context->shared->mutex);
+            //pthread_mutex_unlock(context->shared->queueMut);
             if(*context->shared->waitLock == (*context->shared->nrOfThreads - 1)){
+                pthread_mutex_unlock(context->shared->queueMut);
                 context->shared->running = false;
                 pthread_cond_broadcast(context->shared->condition);
-                pthread_mutex_lock(context->shared->mutex);
+                //pthread_mutex_unlock(context->shared->queueMut);
                 break;
             }else{
                 *context->shared->waitLock = (*context->shared->waitLock + 1);
-                pthread_cond_wait(context->shared->condition, context->shared->mutex);
+                pthread_cond_wait(context->shared->condition, context->shared->condMut);
                 *context->shared->waitLock = (*context->shared->waitLock - 1);
-                pthread_mutex_lock(context->shared->mutex);
+                //pthread_mutex_unlock(context->shared->queueMut);
                 continue;
             }
         }
@@ -161,11 +165,11 @@ void* search(void* args){
             dir = opendir(path);
             context->searched++;
         }else if(context->shared->running){
-            pthread_mutex_unlock(context->shared->mutex);
+            pthread_mutex_unlock(context->shared->queueMut);
             //pthread_cond_broadcast(context->shared->condition);
             break;
         }
-        pthread_mutex_unlock(context->shared->mutex);
+        pthread_mutex_unlock(context->shared->queueMut);
         //pthread_cond_broadcast(context->shared->condition);
         //opendir öppnar en folder från sträng
         //dir = opendir(path);
@@ -201,9 +205,9 @@ void* search(void* args){
                             strcmp(ent->d_name, (char *) "..") != 0) {
                         strcat(filename, (char *) "/");
                         printf("***köar på: %s\n", filename);
-                        pthread_mutex_lock(context->shared->mutex);
+                        pthread_mutex_lock(context->shared->queueMut);
                         queue_enqueue(context->shared->directories, filename);
-                        pthread_mutex_unlock(context->shared->mutex);
+                        pthread_mutex_unlock(context->shared->queueMut);
                         pthread_cond_broadcast(context->shared->condition);
                         continue;
                     }
