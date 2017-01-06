@@ -135,32 +135,9 @@ void* search(void* args){
     pthread_barrier_wait(context->shared->barrier);
 
     while(context->shared->running){
-        /*while(queue_isEmpty(context->shared->directories)){
-            pthread_mutex_unlock(context->shared->queueMut);
-            if(*context->shared->waitLock == (*context->shared->nrOfThreads - 1)){
-                context->shared->running = false;
-                pthread_cond_broadcast(context->shared->condition);
-                //pthread_mutex_unlock(context->shared->queueMut);
-                break;
-            }else{
-                *context->shared->waitLock = (*context->shared->waitLock + 1);
-                pthread_cond_wait(context->shared->condition, context->shared->condMut);
-                *context->shared->waitLock = (*context->shared->waitLock - 1);
-                pthread_mutex_lock(context->shared->queueMut);
-                continue;
-            }
-        }*/
+
         pthread_mutex_lock(context->shared->queueMut);
-        if(!queue_isEmpty(context->shared->directories)) {
-            printf("\n*** Behandlar katalog: %s ***\n", (char *) queue_front(context->shared->directories));
-            path = malloc(strlen(queue_front(context->shared->directories)) + 1);
-            strcpy(path, queue_front(context->shared->directories));
-            free(queue_front(context->shared->directories));
-            queue_dequeue(context->shared->directories);
-            pthread_mutex_unlock(context->shared->queueMut);
-            pthread_cond_broadcast(context->shared->condition);
-            context->searched++;
-        }else{
+        if(queue_isEmpty(context->shared->directories)) {
             while(queue_isEmpty(context->shared->directories)){
                 pthread_mutex_unlock(context->shared->queueMut);
                 if(*context->shared->waitLock == (*context->shared->nrOfThreads - 1)){
@@ -172,14 +149,21 @@ void* search(void* args){
                     pthread_cond_wait(context->shared->condition, context->shared->condMut);
                     *context->shared->waitLock = (*context->shared->waitLock - 1);
                     pthread_mutex_lock(context->shared->queueMut);
-                    break;
+                    continue;
                 }
             }
             pthread_mutex_unlock(context->shared->queueMut);
             break;
+        }else{
+            printf("\n*** Behandlar katalog: %s ***\n", (char *) queue_front(context->shared->directories));
+            path = malloc(strlen(queue_front(context->shared->directories)) + 1);
+            strcpy(path, queue_front(context->shared->directories));
+            free(queue_front(context->shared->directories));
+            queue_dequeue(context->shared->directories);
+            pthread_mutex_unlock(context->shared->queueMut);
+            pthread_cond_broadcast(context->shared->condition);
+            context->searched++;
         }
-        //pthread_mutex_unlock(context->shared->queueMut);
-        //pthread_cond_broadcast(context->shared->condition);
         //opendir öppnar en folder från sträng
         dir = opendir(path);
         if (dir) {

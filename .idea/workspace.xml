@@ -47,8 +47,8 @@
       <file leaf-file-name="mfind.c" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/mfind.c">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="107">
-              <caret line="163" column="12" selection-start-line="163" selection-start-column="12" selection-end-line="163" selection-end-column="12" />
+            <state relative-caret-position="251">
+              <caret line="151" column="28" selection-start-line="151" selection-start-column="28" selection-end-line="151" selection-end-column="28" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -366,7 +366,7 @@
       <option name="USE_KEYWORD" value="false" />
       <method />
     </configuration>
-    <configuration default="false" name="mfind" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-t dir -p 2 /home/konig/git/systemnara/mfind/ name" WORKING_DIR="" PASS_PARENT_ENVS_2="true" PROJECT_NAME="mfind" TARGET_NAME="mfind" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="mfind" RUN_TARGET_NAME="mfind">
+    <configuration default="false" name="mfind" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-t dir -p 4 /home/konig/git/systemnara/mfind/ name" WORKING_DIR="" PASS_PARENT_ENVS_2="true" PROJECT_NAME="mfind" TARGET_NAME="mfind" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="mfind" RUN_TARGET_NAME="mfind">
       <envs />
       <method />
     </configuration>
@@ -397,12 +397,12 @@
       <workItem from="1483042407463" duration="35953000" />
       <workItem from="1483355491046" duration="72079000" />
       <workItem from="1483627244233" duration="2452000" />
-      <workItem from="1483646894412" duration="32109000" />
+      <workItem from="1483646894412" duration="33536000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="162925000" />
+    <option name="totallyTimeSpent" value="164352000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="47" y="24" width="1319" height="744" extended-state="6" />
@@ -808,8 +808,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/mfind.c">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="107">
-          <caret line="163" column="12" selection-start-line="163" selection-start-column="12" selection-end-line="163" selection-end-column="12" />
+        <state relative-caret-position="251">
+          <caret line="151" column="28" selection-start-line="151" selection-start-column="28" selection-end-line="151" selection-end-column="28" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
