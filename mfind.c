@@ -13,7 +13,6 @@ int main(int argc, char *argv[]) {
     int waiting = 0;
     int matchSet = false;
     int index;
-
     threadArg* arg = malloc(sizeof(threadArg));
     arg->directories = queue_empty();
 
@@ -25,9 +24,10 @@ int main(int argc, char *argv[]) {
     arg->condition = &cond;
     pthread_cond_init(arg->condition, NULL);
 
+    arg->running = true;
+
     char flagtype;
-    //queue* directories = queue_empty();
-    //queue_setMemHandler(directories, free);
+
 
     //parse flags in argument
     //getopt verkar leta åt flaggor i argumentraden och lägger de i nån slags struktur
@@ -75,17 +75,17 @@ int main(int argc, char *argv[]) {
     arg->waitLock = &waiting;
 
     threadContext context[nrthr];
-    context[0].arg = arg;
-    context[0].searched = 0;
 
     pthread_barrier_t threadBarrier;
     arg->barrier = &threadBarrier;
     pthread_barrier_init(&threadBarrier, NULL, nrthr);
     pthread_t threads[nrthr];
-    threads[0] = pthread_self();
+
+    context[0].shared = arg;
+    context[0].searched = 0;
 
     for(index = 1; index < nrthr; index++){
-        context[index].arg = arg;
+        context[index].shared = arg;
         context[index].searched = 0;
         if(pthread_create(&threads[index], NULL, search, (void*)&context[index])){
             perror("pthread_create: \n");
@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
 
     printf("\nsearchFor: %s", arg->filter);
     for(index = 0; index < nrthr; index++){
-        printf("\nthread %d rearched: %d folders",index ,context[index].searched);
+        printf("\nthread %ld rearched: %d folders",context[index].id ,context[index].searched);
     }
     pthread_mutex_destroy(&mutexLock);
     pthread_barrier_destroy(&threadBarrier);
@@ -122,61 +122,54 @@ int main(int argc, char *argv[]) {
 }
 void* search(void* args){
     //struktur där man kan spara ner folders
-    DIR *dir;
+    DIR *dir = NULL;
     //2 till strukturer där man kan lagra ner filer för att få info om dom
     struct dirent *ent;
     struct stat st;
     char* path = 0;
     char* filename;
     threadContext* context = (threadContext*)args;
-    pthread_barrier_wait(context->arg->barrier);
-    while(true){
-        //spårutskrift för när den börjar bearbeta en mapp
+    context->id = pthread_self();
+    pthread_barrier_wait(context->shared->barrier);
 
-        pthread_mutex_lock(context->arg->mutex);
-
-        if(!queue_isEmpty(context->arg->directories)){
-            printf("\n*** Behandlar katalog: %s ***\n", (char *)queue_front(context->arg->directories));
-            path = malloc(strlen(queue_front(context->arg->directories)) + 1);
-            strcpy(path, queue_front(context->arg->directories));
-            free(queue_front(context->arg->directories));
-            queue_dequeue(context->arg->directories);
-            context->searched++;
-        }else{                                                                     //todo fixa elsen så den fungerar me broadcast o skit
-
-            if(*context->arg->waitLock >= (*context->arg->nrOfThreads - 1)){   //STEG 2 om kön är tom och du är sista tråden
-                pthread_cond_broadcast(context->arg->condition);                //starta igång alla väntande trådar
-                *context->arg->waitLock = 0;                                    //sätt väntande trådar till 0
-                pthread_mutex_lock(context->arg->mutex);                        //lås kön
-                if(queue_isEmpty(context->arg->directories)){                   //om kön är tom lås upp den och hoppa ur
-                    pthread_mutex_unlock(context->arg->mutex);
-                    break;
-                }else{                                                          //om kön är icke tom lås upp och börja om
-                    pthread_mutex_unlock(context->arg->mutex);
-                    continue;
-                }
-            }else{                                                               // STEG 1 om kön är tom
-
-                *context->arg->waitLock = (*context->arg->waitLock + 1);           //+a på 1 på antal trådar i väntläge
-                //pthread_mutex_unlock(context->arg->mutex);
-                printf("\n-*-*-*-*-*-*kuklock<<<>>>>>>>>>\n");
-                pthread_cond_wait(context->arg->condition, context->arg->mutex);  //vänta här på en broadcast se STEG 2
-                pthread_mutex_lock(context->arg->mutex);                          //lås kön
-                if(queue_isEmpty(context->arg->directories)){                     //om kön är tom lås upp och avsluta
-                    pthread_mutex_unlock(context->arg->mutex);
-                    break;
-                }else{                                                            //om kön är icke tom lås upp och börja om
-                    pthread_mutex_unlock(context->arg->mutex);
-                    continue;
-                }
+    while(context->shared->running){
+        pthread_mutex_lock(context->shared->mutex);
+        while(queue_isEmpty(context->shared->directories)){
+            pthread_mutex_unlock(context->shared->mutex);
+            if(*context->shared->waitLock == (*context->shared->nrOfThreads - 1)){
+                context->shared->running = false;
+                pthread_cond_broadcast(context->shared->condition);
+                pthread_mutex_lock(context->shared->mutex);
+                break;
+            }else{
+                *context->shared->waitLock = (*context->shared->waitLock + 1);
+                pthread_cond_wait(context->shared->condition, context->shared->mutex);
+                *context->shared->waitLock = (*context->shared->waitLock - 1);
+                pthread_mutex_lock(context->shared->mutex);
+                continue;
             }
-           // pthread_mutex_unlock(context->arg->mutex);
-           // break;
         }
-        pthread_mutex_unlock(context->arg->mutex);
+        //pthread_mutex_lock(context->shared->mutex);
+        if(!queue_isEmpty(context->shared->directories)) {
+            printf("\n*** Behandlar katalog: %s ***\n", (char *) queue_front(context->shared->directories));
+            path = malloc(strlen(queue_front(context->shared->directories)) + 1);
+            strcpy(path, queue_front(context->shared->directories));
+            free(queue_front(context->shared->directories));
+            queue_dequeue(context->shared->directories);
+            //pthread_mutex_unlock(context->shared->mutex);
+            //pthread_cond_broadcast(context->shared->condition);
+            dir = opendir(path);
+            context->searched++;
+        }else if(context->shared->running){
+            pthread_mutex_unlock(context->shared->mutex);
+            //pthread_cond_broadcast(context->shared->condition);
+            break;
+        }
+        pthread_mutex_unlock(context->shared->mutex);
+        //pthread_cond_broadcast(context->shared->condition);
         //opendir öppnar en folder från sträng
-        dir = opendir(path);
-        if (dir) {
+        //dir = opendir(path);
+        if (dir != NULL) {
             //readdir dundrar igenom nästa fil i en folder och sparar i en struct dirent
             /* print all the files and directories within directory */
             while ((ent = readdir(dir)) != NULL) {
@@ -208,9 +201,10 @@ void* search(void* args){
                             strcmp(ent->d_name, (char *) "..") != 0) {
                         strcat(filename, (char *) "/");
                         printf("***köar på: %s\n", filename);
-                        pthread_mutex_lock(context->arg->mutex);
-                        queue_enqueue(context->arg->directories, filename);
-                        pthread_mutex_unlock(context->arg->mutex);
+                        pthread_mutex_lock(context->shared->mutex);
+                        queue_enqueue(context->shared->directories, filename);
+                        pthread_mutex_unlock(context->shared->mutex);
+                        pthread_cond_broadcast(context->shared->condition);
                         continue;
                     }
                 }
@@ -221,6 +215,7 @@ void* search(void* args){
                 free(filename);
             }
             closedir (dir);
+            dir = NULL;
         } else {
             /* could not open directory */
             fprintf(stderr, "%s", path);

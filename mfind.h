@@ -10,6 +10,7 @@ typedef struct threadArg{
     char* filter;
     unsigned int* nrOfThreads;
     int* waitLock;
+    bool running;
     pthread_mutex_t* mutex;
     pthread_barrier_t* barrier;
     pthread_cond_t* condition;
@@ -17,7 +18,8 @@ typedef struct threadArg{
 
 typedef struct {
     unsigned int searched;
-    threadArg* arg;
+    long int id;
+    threadArg* shared;
 } threadContext;
 
 void getDir(int argc, char **argv, int nrArg, threadArg* arg);
