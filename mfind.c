@@ -108,7 +108,6 @@ int main(int argc, char *argv[]) {
         printf("\nthread %ld rearched: %d folders",context[index].id ,context[index].searched);
     }
     pthread_mutex_destroy(&qMutex);
-    pthread_mutex_destroy(&cMutex);
     pthread_barrier_destroy(&threadBarrier);
     pthread_cond_destroy(&cond);
     queue_free(arg->directories);
@@ -238,6 +237,6 @@ void getDir(int argc, char **argv, int nrArg, threadArg* arg){
         strcpy(path, argv[nrArg]);
         queue_enqueue(arg->directories, path);
     }
-    printf("\n ----------------   %s", argv[nrArg]);
+    printf("\n ----------------  search for: %s ----------------", argv[nrArg]);
     arg->filter = argv[nrArg];
 }
