@@ -175,6 +175,8 @@ void* search(void* args){
                     break;
                 }
             }
+            pthread_mutex_unlock(context->shared->queueMut);
+            break;
         }
         //pthread_mutex_unlock(context->shared->queueMut);
         //pthread_cond_broadcast(context->shared->condition);
