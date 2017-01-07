@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     arg->condition = &cond;
     pthread_cond_init(arg->condition, NULL);
 
-    arg->running = true;
+    arg->running = (bool *) true;
 
     char flagtype;
 
@@ -128,98 +128,139 @@ void* search(void* args){
     //2 till strukturer där man kan lagra ner filer för att få info om dom
     struct dirent *ent;
     struct stat st;
-    char* path = 0;
-    char* filename;
     threadContext* context = (threadContext*)args;
     context->id = pthread_self();
     pthread_barrier_wait(context->shared->barrier);
 
     while(context->shared->running){
 
+        printf("0x%lx %s(%d)acquire queueMut\n", context->id, __FUNCTION__, __LINE__);
         pthread_mutex_lock(context->shared->queueMut);
         if(queue_isEmpty(context->shared->directories)) {
-            while(queue_isEmpty(context->shared->directories)){
-                pthread_mutex_unlock(context->shared->queueMut);
-                if(*context->shared->waitLock == (*context->shared->nrOfThreads - 1)){
-                    context->shared->running = false;
-                    pthread_cond_broadcast(context->shared->condition);
-                    break;
-                }else{
-                    *context->shared->waitLock = (*context->shared->waitLock + 1);
+            printf("0x%lx %s(%d)release queueMut\n", context->id, __FUNCTION__, __LINE__);
+            pthread_mutex_unlock(context->shared->queueMut);
+
+            printf("\n*** (0x%ld) waitLock is:%d nrthr is:%d\n", context->id, *context->shared->waitLock, (*context->shared->nrOfThreads - 1));
+            printf("0x%lx %s(%d)acquire condMut\n", context->id, __FUNCTION__, __LINE__);
+            pthread_mutex_lock(context->shared->condMut);
+            if(*context->shared->waitLock >= (*context->shared->nrOfThreads - 1)){
+                context->shared->running = false;
+                printf("\n*** %ld broadcast and exit FINAL\n", context->id);
+                pthread_cond_broadcast(context->shared->condition);
+                printf("0x%lx %s(%d)release condMut\n", context->id, __FUNCTION__, __LINE__);
+                pthread_mutex_unlock(context->shared->condMut);
+                return NULL;
+            }else{
+                printf("\n*** %ld wait\n", context->id);
+                *context->shared->waitLock = (*context->shared->waitLock + 1);
+                bool c = true;
+                while (c){
+                    printf("0x%lx %s(%d)acquire queueMut\n", context->id, __FUNCTION__, __LINE__);
+                    pthread_mutex_lock(context->shared->queueMut);
+                    c = queue_isEmpty(context->shared->directories);
+                    printf("0x%lx %s(%d)release queueMut\n", context->id, __FUNCTION__, __LINE__);
+                    pthread_mutex_unlock(context->shared->queueMut);
                     pthread_cond_wait(context->shared->condition, context->shared->condMut);
                     *context->shared->waitLock = (*context->shared->waitLock - 1);
-                    pthread_mutex_lock(context->shared->queueMut);
-                    continue;
+                    if (!context->shared->running) {
+                        printf("\n*** %ld exit after wait FINAL\n", context->id);
+                        printf("0x%lx %s(%d)release condMut\n", context->id, __FUNCTION__, __LINE__);
+                        pthread_mutex_unlock(context->shared->condMut);
+                        break;
+                    }
+                    printf("\n*** %ld exit after wait\n", context->id);
+                    printf("0x%lx %s(%d)release condMut\n", context->id, __FUNCTION__, __LINE__);
+                    pthread_mutex_unlock(context->shared->condMut);
+                    break;
                 }
             }
-            pthread_mutex_unlock(context->shared->queueMut);
-            break;
-        }else{
-            printf("\n*** Behandlar katalog: %s ***\n", (char *) queue_front(context->shared->directories));
-            path = malloc(strlen(queue_front(context->shared->directories)) + 1);
+        } else{
+            printf("\n*** (0x%ld) Behandlar katalog: %s ***\n", context->id, (char *) queue_front(context->shared->directories));
+            char* path = malloc(strlen(queue_front(context->shared->directories)) + 1);
             strcpy(path, queue_front(context->shared->directories));
+            printf("\n*** (0x%ld) Kopierade path: %s ***\n", context->id, path);
+
             free(queue_front(context->shared->directories));
             queue_dequeue(context->shared->directories);
+            printf("0x%lx %s(%d)release queueMut\n", context->id, __FUNCTION__, __LINE__);
             pthread_mutex_unlock(context->shared->queueMut);
-            pthread_cond_broadcast(context->shared->condition);
             context->searched++;
-        }
-        //opendir öppnar en folder från sträng
-        dir = opendir(path);
-        if (dir) {
-            //readdir dundrar igenom nästa fil i en folder och sparar i en struct dirent
-            /* print all the files and directories within directory */
-            while ((ent = readdir(dir)) != NULL) {
-                filename = malloc(strlen(path) + strlen(ent->d_name) +2);
-                strcpy(filename, path);
-                //addera filnamnet på katalogpathen
-                strcat(filename, ent->d_name);
 
-                //lstat sparar ner info i en liknande struktur som dirent...fast den har lite annan info
-                //kanske nån är överflödig men ja tror fan de krävs båda för
-                //att få ut allt man vill ha
-                if(lstat(filename, &st) != -1){
-                }else{
-                    fprintf(stderr,"%s", path);
-                    perror("lstat: ");
-                    fflush(stderr);
-                }
-                printf ("\nfilename: %s\n", ent->d_name);
-                //S_ISLINK och dom andra kollar om filen är link, fil eller dir
-                if(S_ISLNK(st.st_mode)) {
-                    printf("Type: Symbolic link\n");  //todo skriva ut resultat korrekt
-                    printf("Path: %s\n", filename);
-                }
-                else if(S_ISDIR(st.st_mode)){
-                    printf ("Type: Directory\n");     //todo skriva ut resultat korrekt
-                    printf("path: %s\n", filename);
-                    //om de är en dir och inte är . eller .. så ska den addera till kön o bränna av en ny opendir
-                    if(strcmp(ent->d_name, (char *) ".") != 0 &&
-                            strcmp(ent->d_name, (char *) "..") != 0) {
-                        strcat(filename, (char *) "/");
-                        printf("***köar på: %s\n", filename);
-                        pthread_mutex_lock(context->shared->queueMut);
-                        queue_enqueue(context->shared->directories, filename);
-                        pthread_mutex_unlock(context->shared->queueMut);
-                        pthread_cond_broadcast(context->shared->condition);
-                        continue;
+            //opendir öppnar en folder från sträng
+            dir = opendir(path);
+            if (dir) {
+                //readdir dundrar igenom nästa fil i en folder och sparar i en struct dirent
+                /* print all the files and directories within directory */
+                while ((ent = readdir(dir)) != NULL) {
+                    char* filename = malloc(sizeof(char) * (strlen(path) + strlen(ent->d_name) + 2));
+                    strcpy(filename, path);
+                    //addera filnamnet på katalogpathen
+                    strcat(filename, ent->d_name);
+
+                    //lstat sparar ner info i en liknande struktur som dirent...fast den har lite annan info
+                    //kanske nån är överflödig men ja tror fan de krävs båda för
+                    //att få ut allt man vill ha
+                    if(lstat(filename, &st) != -1){
+                    }else{
+                        fprintf(stderr,"%s", path);
+                        perror("lstat: ");
+                        fflush(stderr);
                     }
+                    printf ("\n (0x%lx) filename: %s\n", context->id, ent->d_name);
+                    //S_ISLINK och dom andra kollar om filen är link, fil eller dir
+                    if(S_ISLNK(st.st_mode)) {
+                        printf("(0x%lx) Type: Symbolic link\n", context->id);  //todo skriva ut resultat korrekt
+                        printf("(0x%lx) Path: %s\n", context->id, filename);
+                        printf(" (0x%lx) jämför filename: %s med filter: %s\n", context->id, filename, context->shared->filter);
+                        if (strstr(filename, context->shared->filter) != NULL){ // todo kolla om filtret är enabled
+                            printf("(0x%lx) TRÄFF: %s in %s\n", context->id, context->shared->filter, path);
+                        }
+                    }
+                    else if(S_ISDIR(st.st_mode)){
+                        printf ("(0x%lx) Type: Directory\n", context->id);     //todo skriva ut resultat korrekt
+                        printf("(0x%lx) filename: %s\n", context->id, filename);
+                        //om de är en dir och inte är . eller .. så ska den addera till kön o bränna av en ny opendir
+                        if(strcmp(ent->d_name, (char *) ".") != 0 &&
+                           strcmp(ent->d_name, (char *) "..") != 0) {
+                            strcat(filename, (char *) "/");
+                            printf("(0x%lx) ***köar på: %s\n", context->id, filename);
+                            printf("0x%lx %s(%d)acquire queueMut\n", context->id, __FUNCTION__, __LINE__);
+                            pthread_mutex_lock(context->shared->queueMut);
+                            queue_enqueue(context->shared->directories, filename);
+                            printf("0x%lx %s(%d)release queueMut\n", context->id, __FUNCTION__, __LINE__);
+                            pthread_mutex_unlock(context->shared->queueMut);
+                            printf("0x%lx %s(%d)acquire condMut\n", context->id, __FUNCTION__, __LINE__);
+                            pthread_mutex_lock(context->shared->condMut);
+                            pthread_cond_signal(context->shared->condition);
+                            printf("0x%lx %s(%d)release condMut\n", context->id, __FUNCTION__, __LINE__);
+                            pthread_mutex_unlock(context->shared->condMut);
+                            printf(" (0x%lx) jämför filename: %s med filter: %s\n", context->id, filename, context->shared->filter);
+                            if (strstr(filename, context->shared->filter) != NULL){ // todo kolla om filtret är enabled{
+                                printf("(0x%lx) TRÄFF: %s in %s\n", context->id, context->shared->filter, filename);
+                            }
+                            continue;
+                        }
+                    }
+                    else if(S_ISREG(st.st_mode)){
+                        printf ("(0x%lx) Type: File\n", context->id);        //todo skriva ut resultat korrekt
+                        printf(" (0x%lx) jämför filename: %s med filter: %s\n", context->id, filename, context->shared->filter);
+                        if (strstr(filename, context->shared->filter) != NULL){ // todo kolla om filtret är enabled{
+                            printf("(0x%lx) TRÄFF: %s in %s\n", context->id, context->shared->filter, filename);
+                        }
+
+                    }
+                    free(filename);
                 }
-                else if(S_ISREG(st.st_mode)){
-                    printf ("Type: File\n");        //todo skriva ut resultat korrekt
-                    printf("path: %s\n", filename);
-                }
-                free(filename);
+                closedir (dir);
+                //dir = NULL;
+            } else {
+                /* could not open directory */
+                fprintf(stderr, "could not open \"%s\"\n", path);
+                perror("opendir:");
+                fflush(stderr);
             }
-            closedir (dir);
-            //dir = NULL;
-        } else {
-            /* could not open directory */
-            fprintf(stderr, "%s", path);
-            perror("opendir:");
-            fflush(stderr);
+            free(path);
         }
-        free(path);
     }
     return NULL;
 }
