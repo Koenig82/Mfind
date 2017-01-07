@@ -18,6 +18,7 @@
 #include <dirent.h>
 #include <getopt.h>
 #include <string.h>
+#include <unistd.h>
 #include "mfind.h"
 
 int main(int argc, char *argv[]) {
@@ -27,7 +28,7 @@ int main(int argc, char *argv[]) {
     int waiting = 0;
     int index;
     unsigned int nrthr = 0;
-    char flagtype;
+    char flagtype = 0;
 
     //parse flags in argument
     while ((flag = getopt(argc, argv, "t:p:")) != -1) {
@@ -92,10 +93,12 @@ int main(int argc, char *argv[]) {
     threadContext context[nrthr];
     context[0].shared = arg;
     context[0].searched = 0;
+    context[0].type = flagtype;
     //start threads
     for(index = 1; (unsigned int)index < nrthr; index++){
         context[index].shared = arg;
         context[index].searched = 0;
+        context[index].type = flagtype;
         if(pthread_create(&threads[index], NULL, search,
                           (void*)&context[index])){
             perror("pthread_create: \n");
@@ -110,11 +113,10 @@ int main(int argc, char *argv[]) {
             perror("pthread_join :");
         }
     }
-    printf("\ntypeFlag: %c\nnrOfThreadFlag: %d ", flagtype, nrthr);
 
-    printf("\nsearchFor: %s", arg->target);
+    //print threads individual workload
     for(index = 0; (unsigned int)index < nrthr; index++){
-        printf("\nthread %ld rearched: %d folders",context[index].id ,context[index].searched);
+        printf("\nThread: %ld Reads: %d",context[index].id ,context[index].searched);
     }
     //free memory
     pthread_mutex_destroy(&qMutex);
@@ -142,7 +144,6 @@ void* search(void* args){
     context->id = pthread_self();
     //gather upp all threads before launch
     pthread_barrier_wait(context->shared->barrier);
-
     while(context->shared->running){
         //if queue is empty...
         pthread_mutex_lock(context->shared->queueMut);
@@ -199,7 +200,9 @@ void* search(void* args){
             if (dir) {
                 //total searchpath loop
                 while ((ent = readdir(dir)) != NULL) {
-                    char* fullpath = malloc(sizeof(char) * (strlen(path) + strlen(ent->d_name))+2);
+                    char* fullpath = malloc(sizeof(char) *
+                                            (strlen(path) +
+                                             strlen(ent->d_name))+2);
                     strcpy(fullpath, path);
                     strcat(fullpath, ent->d_name);
 
@@ -214,9 +217,15 @@ void* search(void* args){
 
                     //if readdir target is a symbolic link
                     if(S_ISLNK(st.st_mode)) {
-                        printf(" (0x%ld) jämför fullpath: %s med target: %s\n", context->id, ent->d_name, context->shared->target);
-                        if (strstr(ent->d_name, context->shared->target) != NULL){ // todo kolla om filtret är enabled
-                            printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->target, path, ent->d_name);
+                        if(context->type == 'l' || context->type == 0){
+                            if(strcmp(ent->d_name, context->shared->target)
+                               == 0){
+                                char *symlink = malloc(1024);
+                                memset(symlink, 0, 1024);
+                                readlink(fullpath, symlink, 1023);
+                                printf("\n%s", symlink);
+                                free(symlink);
+                            }
                         }
                     }
                     //if readdir target is a directory
@@ -225,24 +234,28 @@ void* search(void* args){
                         if(strcmp(ent->d_name, (char *) ".") != 0 &&
                            strcmp(ent->d_name, (char *) "..") != 0) {
                             strcat(fullpath, (char *) "/");
+                            if(context->type == 'd' || context->type == 0){
+                                if(strcmp(ent->d_name, context->shared->target)
+                                   == 0){
+                                    printf("\n%s%s", path, ent->d_name);
+                                }
+                            }
                             pthread_mutex_lock(context->shared->queueMut);
                             queue_enqueue(context->shared->directories, fullpath);
                             pthread_mutex_unlock(context->shared->queueMut);
                             pthread_mutex_lock(context->shared->condMut);
-                            pthread_cond_signal(context->shared->condition);
+                            pthread_cond_broadcast(context->shared->condition);
                             pthread_mutex_unlock(context->shared->condMut);
-                            printf("  (0x%ld) jämför fullpath: %s med target: %s\n", context->id, path, context->shared->target);
-                            if (strstr(ent->d_name, context->shared->target) != NULL){ // todo kolla om filtret är enabled{
-                                printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->target, path, ent->d_name);
-                            }
                             continue;
                         }
                     }
-                    //if readdir target is afile
+                    //if readdir target is a file
                     else if(S_ISREG(st.st_mode)){
-                        printf(" (0x%lx) jämför fullpath: %s med target: %s\n", context->id, fullpath, context->shared->target);
-                        if (strstr(ent->d_name, context->shared->target) != NULL){ // todo kolla om filtret är enabled{
-                            printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->target, path, ent->d_name);
+                        if(context->type == 'f' || context->type == 0){
+                            if(strcmp(ent->d_name, context->shared->target)
+                               == 0){
+                                printf("\n%s%s", path, ent->d_name);
+                            }
                         }
 
                     }

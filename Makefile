@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -std=c11 -Wall -pthread -D_SVID_SOURCE
+CFLAGS= -std=c11 -pthread -Wall -D_SVID_SOURCE
 
 all: mfind
 
