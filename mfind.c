@@ -244,7 +244,7 @@ void* search(void* args){
                             queue_enqueue(context->shared->directories, fullpath);
                             pthread_mutex_unlock(context->shared->queueMut);
                             pthread_mutex_lock(context->shared->condMut);
-                            pthread_cond_broadcast(context->shared->condition);
+                            pthread_cond_signal(context->shared->condition);
                             pthread_mutex_unlock(context->shared->condMut);
                             continue;
                         }
