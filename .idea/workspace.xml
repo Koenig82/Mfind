@@ -12,7 +12,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="56dccec9-ec07-42fa-9de7-9e40aac30eed" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/CMakeLists.txt" afterPath="$PROJECT_DIR$/CMakeLists.txt" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/mfind.c" afterPath="$PROJECT_DIR$/mfind.c" />
     </list>
     <ignored path="mfind.iws" />
@@ -48,8 +47,8 @@
       <file leaf-file-name="mfind.c" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/mfind.c">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="229">
-              <caret line="242" column="72" selection-start-line="242" selection-start-column="72" selection-end-line="242" selection-end-column="72" />
+            <state relative-caret-position="-959">
+              <caret line="29" column="26" selection-start-line="29" selection-start-column="26" selection-end-line="29" selection-end-column="26" />
               <folding>
                 <element signature="e#446#464#0" expanded="true" />
               </folding>
@@ -400,12 +399,12 @@
       <workItem from="1483627244233" duration="2452000" />
       <workItem from="1483646894412" duration="42457000" />
       <workItem from="1483743920484" duration="402000" />
-      <workItem from="1483744934609" duration="36903000" />
+      <workItem from="1483744934609" duration="37535000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="210578000" />
+    <option name="totallyTimeSpent" value="211210000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="47" y="24" width="1319" height="744" extended-state="6" />
@@ -871,8 +870,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/mfind.c">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="229">
-          <caret line="242" column="72" selection-start-line="242" selection-start-column="72" selection-end-line="242" selection-end-column="72" />
+        <state relative-caret-position="-959">
+          <caret line="29" column="26" selection-start-line="29" selection-start-column="26" selection-end-line="29" selection-end-column="26" />
           <folding>
             <element signature="e#446#464#0" expanded="true" />
           </folding>

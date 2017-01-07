@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     int flag;
     int waiting = 0;
     int index;
-    unsigned int nrthr = 0;
+    unsigned int nrthr = 1;
     char flagtype = 0;
 
     //parse flags in argument
