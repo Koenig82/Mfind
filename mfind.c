@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
     arg->nrOfThreads = &nrthr;
     pthread_barrier_init(&threadBarrier, NULL, nrthr);
     pthread_t threads[nrthr];
-    //initialize threadcontext
+    //initialize threadcontexts
     threadContext context[nrthr];
     context[0].shared = arg;
     context[0].searched = 0;
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    //print threads individual workload
+    //print each thread's individual workload
     for(index = 0; (unsigned int)index < nrthr; index++){
         printf("\nThread: %ld Reads: %d",context[index].id ,context[index].searched);
     }
@@ -284,8 +284,11 @@ void* search(void* args){
 void getDir(int argc, char **argv, int nrArg, threadArg* arg){
 
     for(; nrArg < (argc-1); nrArg++){
-        char* path = malloc(strlen(argv[nrArg])+1);
+        char* path = malloc(strlen(argv[nrArg])+2);
         strcpy(path, argv[nrArg]);
+        if(path[strlen(path)] != '/'){
+            strcat(path, "/");
+        }
         queue_enqueue(arg->directories, path);
     }
     arg->target = argv[nrArg];

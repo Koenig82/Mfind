@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -std=c11 -pthread -Wall -D_SVID_SOURCE
+CFLAGS= -std=gnu99 -pthread -Wall -D_GNU_SOURCE
 
 all: mfind
 
@@ -16,4 +16,4 @@ list_2cell.o: list_2cell.c list_2cell.h
 	$(CC) $(CFLAGS) -c list_2cell.c
 
 clean:
-	 rm -f rm *.o
+	 rm -f mfind rm *.o
