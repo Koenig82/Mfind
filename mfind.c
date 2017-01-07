@@ -193,41 +193,41 @@ void* search(void* args){
                 //readdir dundrar igenom nästa fil i en folder och sparar i en struct dirent
                 /* print all the files and directories within directory */
                 while ((ent = readdir(dir)) != NULL) {
-                    char* filename = malloc(sizeof(char) * (strlen(path) + strlen(ent->d_name))+2);
-                    strcpy(filename, path);
+                    char* fullpath = malloc(sizeof(char) * (strlen(path) + strlen(ent->d_name))+2);
+                    strcpy(fullpath, path);
                     //addera filnamnet på katalogpathen
-                    strcat(filename, ent->d_name);
+                    strcat(fullpath, ent->d_name);
 
                     //lstat sparar ner info i en liknande struktur som dirent...fast den har lite annan info
                     //kanske nån är överflödig men ja tror fan de krävs båda för
                     //att få ut allt man vill ha
-                    if(lstat(filename, &st) != -1){
+                    if(lstat(fullpath, &st) != -1){
                     }else{
                         fprintf(stderr,"%s", path);
                         perror("lstat: ");
                         fflush(stderr);
                     }
-                    printf ("\n (0x%ld) filename: %s\n", context->id, ent->d_name);
+                    printf ("\n (0x%ld) fullpath: %s\n", context->id, ent->d_name);
                     //S_ISLINK och dom andra kollar om filen är link, fil eller dir
                     if(S_ISLNK(st.st_mode)) {
                         printf("(0x%ld) Type: Symbolic link\n", context->id);  //todo skriva ut resultat korrekt
                         printf("(0x%ld) Path: %s%s\n", context->id, path, ent->d_name);
-                        printf(" (0x%ld) jämför filename: %s med filter: %s\n", context->id, ent->d_name, context->shared->filter);
+                        printf(" (0x%ld) jämför fullpath: %s med filter: %s\n", context->id, ent->d_name, context->shared->filter);
                         if (strstr(ent->d_name, context->shared->filter) != NULL){ // todo kolla om filtret är enabled
                             printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->filter, path, ent->d_name);
                         }
                     }
                     else if(S_ISDIR(st.st_mode)){
                         printf ("(0x%ld) Type: Directory\n", context->id);     //todo skriva ut resultat korrekt
-                        printf("(0x%ld) filename: %s\n", context->id, ent->d_name);
+                        printf("(0x%ld) fullpath: %s\n", context->id, ent->d_name);
                         //om de är en dir och inte är . eller .. så ska den addera till kön o bränna av en ny opendir
                         if(strcmp(ent->d_name, (char *) ".") != 0 &&
                            strcmp(ent->d_name, (char *) "..") != 0) {
-                            strcat(filename, (char *) "/");
+                            strcat(fullpath, (char *) "/");
                             printf("(0x%ld) ***köar på: %s%s\n", context->id, path,ent->d_name);
                             printf("0x%ld %s(%d)acquire queueMut\n", context->id, __FUNCTION__, __LINE__);
                             pthread_mutex_lock(context->shared->queueMut);
-                            queue_enqueue(context->shared->directories, filename);
+                            queue_enqueue(context->shared->directories, fullpath);
                             printf("0x%ld %s(%d)release queueMut\n", context->id, __FUNCTION__, __LINE__);
                             pthread_mutex_unlock(context->shared->queueMut);
                             printf("0x%ld %s(%d)acquire condMut\n", context->id, __FUNCTION__, __LINE__);
@@ -235,7 +235,7 @@ void* search(void* args){
                             pthread_cond_signal(context->shared->condition);
                             printf("0x%ld %s(%d)release condMut\n", context->id, __FUNCTION__, __LINE__);
                             pthread_mutex_unlock(context->shared->condMut);
-                            printf(" (0x%ld) jämför filename: %s med filter: %s\n", context->id, path, context->shared->filter);
+                            printf("  (0x%ld) jämför fullpath: %s med filter: %s\n", context->id, path, context->shared->filter);
                             if (strstr(ent->d_name, context->shared->filter) != NULL){ // todo kolla om filtret är enabled{
                                 printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->filter, path, ent->d_name);
                             }
@@ -244,13 +244,13 @@ void* search(void* args){
                     }
                     else if(S_ISREG(st.st_mode)){
                         printf ("(0x%lx) Type: File\n", context->id);        //todo skriva ut resultat korrekt
-                        printf(" (0x%lx) jämför filename: %s med filter: %s\n", context->id, filename, context->shared->filter);
+                        printf(" (0x%lx) jämför fullpath: %s med filter: %s\n", context->id, fullpath, context->shared->filter);
                         if (strstr(ent->d_name, context->shared->filter) != NULL){ // todo kolla om filtret är enabled{
                             printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->filter, path, ent->d_name);
                         }
 
                     }
-                    free(filename);
+                    free(fullpath);
                 }
                 closedir (dir);
                 //dir = NULL;

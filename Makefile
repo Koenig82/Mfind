@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -std=c11 -lpthread -D_GNU_SOURCE
+CFLAGS= -std=c11 -Wall -pthread -D_SVID_SOURCE
 
 all: mfind
 
