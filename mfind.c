@@ -1,3 +1,18 @@
+//Written by Niklas Königsson
+//
+//mfind
+//Program to search one or more filetrees after a file with different amount
+//of threads.
+//Program arguments must be on the form:
+//mfind [-t type] [-p nrthr] start1 [start2 ...] name
+
+//type is the type of file(d = directory, f = file, l = link).
+//nrthr is the total number of threads to be used(integer).
+//start1-n is the folders to search.
+//name is the target file.
+
+//cs: dv15nkn
+//cas: nika0068
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
@@ -9,32 +24,12 @@ int main(int argc, char *argv[]) {
 
     //variables
     int flag;
-    unsigned int nrthr = 0;
     int waiting = 0;
-    //int matchSet = false;
     int index;
-    threadArg* arg = malloc(sizeof(threadArg));
-    arg->directories = queue_empty();
-
-    pthread_mutex_t qMutex;
-    pthread_mutex_t cMutex;
-    arg->queueMut = &qMutex;
-    arg->condMut = &cMutex;
-    pthread_mutex_init(arg->queueMut ,NULL);
-    pthread_mutex_init(arg->condMut ,NULL);
-
-    pthread_cond_t cond;
-    arg->condition = &cond;
-    pthread_cond_init(arg->condition, NULL);
-
-    arg->running = (bool *) true;
-
+    unsigned int nrthr = 0;
     char flagtype;
 
-
     //parse flags in argument
-    //getopt verkar leta åt flaggor i argumentraden och lägger de i nån slags struktur
-    //getint skapas...de är en int som pekar på n'ästa arg efter flaggorna
     while ((flag = getopt(argc, argv, "t:p:")) != -1) {
         switch (flag) {
             case 't':
@@ -47,7 +42,6 @@ int main(int argc, char *argv[]) {
                 }
                 break;
             case 'p':
-                //atoi gör om t.ex 4 och 0 till 40 om man skrivit att man vill ha 40 trådar
                 nrthr = (unsigned int)atoi(optarg);
                 if(nrthr == 0){
                     fprintf(stderr, "Invalid parameters!\n"
@@ -63,40 +57,54 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
         }
     }
-    //här är optind igen...lite skit för att få användaren att stoppa in rätt mängd argument
-    //mycke är lånat från lorre
     if (argc - 1 == optind || optind >= argc){
         fprintf(stderr, "Invalid parameters!\n"
                 "Usage: mfind [-t type] [-p nrthr] start1"
                 " [start2 ...] name\n");
         exit(EXIT_FAILURE);
     }
-    //funktionerna...under dom finns lite utskrifter om man vill undersöka flaggornas värde
-    //men dom verka funka...tror man kan komma åt dom via optarg
-    getDir(argc, argv, optind, arg);
-    arg->nrOfThreads = &nrthr;
+    //initialize shared threadarguments
+    threadArg* arg = malloc(sizeof(threadArg));
+    arg->directories = queue_empty();
+    arg->running = (bool *) true;
     arg->waitLock = &waiting;
 
-    threadContext context[nrthr];
-
+    pthread_mutex_t qMutex;
+    pthread_mutex_t cMutex;
+    pthread_cond_t cond;
     pthread_barrier_t threadBarrier;
+    arg->queueMut = &qMutex;
+    arg->condMut = &cMutex;
+    arg->condition = &cond;
     arg->barrier = &threadBarrier;
+
+    pthread_mutex_init(arg->queueMut ,NULL);
+    pthread_mutex_init(arg->condMut ,NULL);
+    pthread_cond_init(arg->condition, NULL);
+
+    //get starting directories and searchtarget from argumentline
+    getDir(argc, argv, optind, arg);
+    //initialize threads
+    arg->nrOfThreads = &nrthr;
     pthread_barrier_init(&threadBarrier, NULL, nrthr);
     pthread_t threads[nrthr];
-
+    //initialize threadcontext
+    threadContext context[nrthr];
     context[0].shared = arg;
     context[0].searched = 0;
-
+    //start threads
     for(index = 1; (unsigned int)index < nrthr; index++){
         context[index].shared = arg;
         context[index].searched = 0;
-        if(pthread_create(&threads[index], NULL, search, (void*)&context[index])){
+        if(pthread_create(&threads[index], NULL, search,
+                          (void*)&context[index])){
             perror("pthread_create: \n");
             exit(EXIT_FAILURE);
         }
     }
-
     search(&context[0]);
+
+    //join threads
     for(index = 1; (unsigned int)index < nrthr;index++){
         if(pthread_join(threads[index], NULL)){
             perror("pthread_join :");
@@ -104,156 +112,143 @@ int main(int argc, char *argv[]) {
     }
     printf("\ntypeFlag: %c\nnrOfThreadFlag: %d ", flagtype, nrthr);
 
-    printf("\nsearchFor: %s", arg->filter);
+    printf("\nsearchFor: %s", arg->target);
     for(index = 0; (unsigned int)index < nrthr; index++){
         printf("\nthread %ld rearched: %d folders",context[index].id ,context[index].searched);
     }
+    //free memory
     pthread_mutex_destroy(&qMutex);
     pthread_barrier_destroy(&threadBarrier);
     pthread_cond_destroy(&cond);
     queue_free(arg->directories);
     free(arg);
 
-
-//    p_thread
-//    2 = search(argv[1]);
-//
-//    joina trådar
-//
-//    skriv resultat
-
 }
+/**
+ * Main function for threads. searches folders from a queue
+ * and matches it with a target string. The argument is a
+ * threadContext struct that contains threadlocal information and a pointer
+ * to a threadArg struct for global information.
+ * @param args, threadcontext
+ * @return void
+ */
 void* search(void* args){
-    //struktur där man kan spara ner folders
+    //variables
     DIR *dir = NULL;
-    //2 till strukturer där man kan lagra ner filer för att få info om dom
     struct dirent *ent;
     struct stat st;
+    //set threadcontext
     threadContext* context = (threadContext*)args;
     context->id = pthread_self();
+    //gather upp all threads before launch
     pthread_barrier_wait(context->shared->barrier);
 
     while(context->shared->running){
-
-        printf("0x%ld %s(%d)acquire queueMut\n", context->id, __FUNCTION__, __LINE__);
+        //if queue is empty...
         pthread_mutex_lock(context->shared->queueMut);
         if(queue_isEmpty(context->shared->directories)) {
-            printf("0x%ld %s(%d)release queueMut\n", context->id, __FUNCTION__, __LINE__);
             pthread_mutex_unlock(context->shared->queueMut);
-
-            printf("\n*** (0x%ld) waitLock is:%d nrthr is:%d\n", context->id, *context->shared->waitLock, (*context->shared->nrOfThreads - 1));
-            printf("0x%ld %s(%d)acquire condMut\n", context->id, __FUNCTION__, __LINE__);
             pthread_mutex_lock(context->shared->condMut);
-            if((unsigned int)*context->shared->waitLock >= (*context->shared->nrOfThreads - 1)){
+            //...and you are the last thread:
+            if((unsigned int)*context->shared->waitLock >=
+                    (*context->shared->nrOfThreads - 1)){
+                //set broadcast to all waiting threads and set running to false
                 context->shared->running = false;
-                printf("\n*** %ld broadcast and exit FINAL\n", context->id);
                 pthread_cond_broadcast(context->shared->condition);
-                printf("0x%ld %s(%d)release condMut\n", context->id, __FUNCTION__, __LINE__);
                 pthread_mutex_unlock(context->shared->condMut);
                 return NULL;
+            //...and you are not the last thread:
             }else{
-                printf("\n*** %ld wait\n", context->id);
+                //go to wating status
                 *context->shared->waitLock = (*context->shared->waitLock + 1);
                 bool c = true;
+                //**Waiting status loop**
                 while (c){
-                    printf("0x%ld %s(%d)acquire queueMut\n", context->id, __FUNCTION__, __LINE__);
                     pthread_mutex_lock(context->shared->queueMut);
                     c = queue_isEmpty(context->shared->directories);
-                    printf("0x%ld %s(%d)release queueMut\n", context->id, __FUNCTION__, __LINE__);
                     pthread_mutex_unlock(context->shared->queueMut);
-                    pthread_cond_wait(context->shared->condition, context->shared->condMut);
-                    *context->shared->waitLock = (*context->shared->waitLock - 1);
+                    //threads in waiting check the queue again if signaled
+                    //unless the last thread has set the global running
+                    //parameter off
+                    pthread_cond_wait(context->shared->condition,
+                                      context->shared->condMut);
+                    *context->shared->waitLock =
+                            (*context->shared->waitLock - 1);
                     if (!context->shared->running) {
-                        printf("\n*** %ld exit after wait FINAL\n", context->id);
-                        printf("0x%ld %s(%d)release condMut\n", context->id, __FUNCTION__, __LINE__);
+                        //thread exit
                         pthread_mutex_unlock(context->shared->condMut);
                         break;
                     }
-                    printf("\n*** %ld exit after wait\n", context->id);
-                    printf("0x%ld %s(%d)release condMut\n", context->id, __FUNCTION__, __LINE__);
+                    //thread continue work
                     pthread_mutex_unlock(context->shared->condMut);
                     break;
                 }
             }
+        //if queue is not empty...
         } else{
-            printf("\n*** (0x%ld) Behandlar katalog: %s ***\n", context->id, (char *) queue_front(context->shared->directories));
+            //...save information from queue locally and continue search
             char* path = malloc(strlen(queue_front(context->shared->directories)) + 1);
             strcpy(path, queue_front(context->shared->directories));
-            printf("\n*** (0x%ld) Kopierade path: %s ***\n", context->id, path);
-
             free(queue_front(context->shared->directories));
             queue_dequeue(context->shared->directories);
-            printf("0x%ld %s(%d)release queueMut\n", context->id, __FUNCTION__, __LINE__);
             pthread_mutex_unlock(context->shared->queueMut);
             context->searched++;
 
-            //opendir öppnar en folder från sträng
+            //open directory and analyze
             dir = opendir(path);
             if (dir) {
-                //readdir dundrar igenom nästa fil i en folder och sparar i en struct dirent
-                /* print all the files and directories within directory */
+                //total searchpath loop
                 while ((ent = readdir(dir)) != NULL) {
                     char* fullpath = malloc(sizeof(char) * (strlen(path) + strlen(ent->d_name))+2);
                     strcpy(fullpath, path);
-                    //addera filnamnet på katalogpathen
                     strcat(fullpath, ent->d_name);
 
-                    //lstat sparar ner info i en liknande struktur som dirent...fast den har lite annan info
-                    //kanske nån är överflödig men ja tror fan de krävs båda för
-                    //att få ut allt man vill ha
                     if(lstat(fullpath, &st) != -1){
                     }else{
                         fprintf(stderr,"%s", path);
                         perror("lstat: ");
                         fflush(stderr);
                     }
-                    printf ("\n (0x%ld) fullpath: %s\n", context->id, ent->d_name);
-                    //S_ISLINK och dom andra kollar om filen är link, fil eller dir
+
+                    //match with target and do work depending on filetype
+
+                    //if readdir target is a symbolic link
                     if(S_ISLNK(st.st_mode)) {
-                        printf("(0x%ld) Type: Symbolic link\n", context->id);  //todo skriva ut resultat korrekt
-                        printf("(0x%ld) Path: %s%s\n", context->id, path, ent->d_name);
-                        printf(" (0x%ld) jämför fullpath: %s med filter: %s\n", context->id, ent->d_name, context->shared->filter);
-                        if (strstr(ent->d_name, context->shared->filter) != NULL){ // todo kolla om filtret är enabled
-                            printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->filter, path, ent->d_name);
+                        printf(" (0x%ld) jämför fullpath: %s med target: %s\n", context->id, ent->d_name, context->shared->target);
+                        if (strstr(ent->d_name, context->shared->target) != NULL){ // todo kolla om filtret är enabled
+                            printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->target, path, ent->d_name);
                         }
                     }
+                    //if readdir target is a directory
                     else if(S_ISDIR(st.st_mode)){
-                        printf ("(0x%ld) Type: Directory\n", context->id);     //todo skriva ut resultat korrekt
-                        printf("(0x%ld) fullpath: %s\n", context->id, ent->d_name);
-                        //om de är en dir och inte är . eller .. så ska den addera till kön o bränna av en ny opendir
+                        //exclude . and .. folders
                         if(strcmp(ent->d_name, (char *) ".") != 0 &&
                            strcmp(ent->d_name, (char *) "..") != 0) {
                             strcat(fullpath, (char *) "/");
-                            printf("(0x%ld) ***köar på: %s%s\n", context->id, path,ent->d_name);
-                            printf("0x%ld %s(%d)acquire queueMut\n", context->id, __FUNCTION__, __LINE__);
                             pthread_mutex_lock(context->shared->queueMut);
                             queue_enqueue(context->shared->directories, fullpath);
-                            printf("0x%ld %s(%d)release queueMut\n", context->id, __FUNCTION__, __LINE__);
                             pthread_mutex_unlock(context->shared->queueMut);
-                            printf("0x%ld %s(%d)acquire condMut\n", context->id, __FUNCTION__, __LINE__);
                             pthread_mutex_lock(context->shared->condMut);
                             pthread_cond_signal(context->shared->condition);
-                            printf("0x%ld %s(%d)release condMut\n", context->id, __FUNCTION__, __LINE__);
                             pthread_mutex_unlock(context->shared->condMut);
-                            printf("  (0x%ld) jämför fullpath: %s med filter: %s\n", context->id, path, context->shared->filter);
-                            if (strstr(ent->d_name, context->shared->filter) != NULL){ // todo kolla om filtret är enabled{
-                                printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->filter, path, ent->d_name);
+                            printf("  (0x%ld) jämför fullpath: %s med target: %s\n", context->id, path, context->shared->target);
+                            if (strstr(ent->d_name, context->shared->target) != NULL){ // todo kolla om filtret är enabled{
+                                printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->target, path, ent->d_name);
                             }
                             continue;
                         }
                     }
+                    //if readdir target is afile
                     else if(S_ISREG(st.st_mode)){
-                        printf ("(0x%lx) Type: File\n", context->id);        //todo skriva ut resultat korrekt
-                        printf(" (0x%lx) jämför fullpath: %s med filter: %s\n", context->id, fullpath, context->shared->filter);
-                        if (strstr(ent->d_name, context->shared->filter) != NULL){ // todo kolla om filtret är enabled{
-                            printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->filter, path, ent->d_name);
+                        printf(" (0x%lx) jämför fullpath: %s med target: %s\n", context->id, fullpath, context->shared->target);
+                        if (strstr(ent->d_name, context->shared->target) != NULL){ // todo kolla om filtret är enabled{
+                            printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->target, path, ent->d_name);
                         }
 
                     }
                     free(fullpath);
                 }
                 closedir (dir);
-                //dir = NULL;
             } else {
                 /* could not open directory */
                 fprintf(stderr, "could not open \"%s\"\n", path);
@@ -265,15 +260,20 @@ void* search(void* args){
     }
     return NULL;
 }
-
+/**
+ * This function fills the threadArg struct with information. Enqueues the
+ * folders and sets the target from the mainarguments line.
+ * @param argc main nr of arguments
+ * @param argv main argumentarray
+ * @param nrArg main number of arguments excluding flags
+ * @param arg pointer to threadArg struct to fill
+ */
 void getDir(int argc, char **argv, int nrArg, threadArg* arg){
 
     for(; nrArg < (argc-1); nrArg++){
-        printf(">>>>Köar på: %s\n", argv[nrArg]);
         char* path = malloc(strlen(argv[nrArg])+1);
         strcpy(path, argv[nrArg]);
         queue_enqueue(arg->directories, path);
     }
-    printf("\n ----------------  search for: %s ----------------", argv[nrArg]);
-    arg->filter = argv[nrArg];
+    arg->target = argv[nrArg];
 }
