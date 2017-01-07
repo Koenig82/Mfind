@@ -179,7 +179,7 @@ void* search(void* args){
             printf("\n*** (0x%ld) Behandlar katalog: %s ***\n", context->id, (char *) queue_front(context->shared->directories));
             char* path = malloc(strlen(queue_front(context->shared->directories)) + 1);
             strcpy(path, queue_front(context->shared->directories));
-            //printf("\n*** (0x%ld) Kopierade path: %s ***\n", context->id, path);
+            printf("\n*** (0x%ld) Kopierade path: %s ***\n", context->id, path);
 
             free(queue_front(context->shared->directories));
             queue_dequeue(context->shared->directories);
@@ -207,36 +207,36 @@ void* search(void* args){
                         perror("lstat: ");
                         fflush(stderr);
                     }
-                    //printf ("\n (0x%ld) filename: %s\n", context->id, ent->d_name);
+                    printf ("\n (0x%ld) filename: %s\n", context->id, ent->d_name);
                     //S_ISLINK och dom andra kollar om filen är link, fil eller dir
                     if(S_ISLNK(st.st_mode)) {
-                        //printf("(0x%ld) Type: Symbolic link\n", context->id);  //todo skriva ut resultat korrekt
-                        //printf("(0x%ld) Path: %s\n", context->id, filename);
-                        //printf(" (0x%ld) jämför filename: %s med filter: %s\n", context->id, filename, context->shared->filter);
-                        if (strstr(filename, context->shared->filter) != NULL){ // todo kolla om filtret är enabled
+                        printf("(0x%ld) Type: Symbolic link\n", context->id);  //todo skriva ut resultat korrekt
+                        printf("(0x%ld) Path: %s%s\n", context->id, path, ent->d_name);
+                        printf(" (0x%ld) jämför filename: %s med filter: %s\n", context->id, ent->d_name, context->shared->filter);
+                        if (strstr(ent->d_name, context->shared->filter) != NULL){ // todo kolla om filtret är enabled
                             printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->filter, path, ent->d_name);
                         }
                     }
                     else if(S_ISDIR(st.st_mode)){
-                        //printf ("(0x%ld) Type: Directory\n", context->id);     //todo skriva ut resultat korrekt
-                        //printf("(0x%ld) filename: %s\n", context->id, filename);
+                        printf ("(0x%ld) Type: Directory\n", context->id);     //todo skriva ut resultat korrekt
+                        printf("(0x%ld) filename: %s\n", context->id, ent->d_name);
                         //om de är en dir och inte är . eller .. så ska den addera till kön o bränna av en ny opendir
                         if(strcmp(ent->d_name, (char *) ".") != 0 &&
                            strcmp(ent->d_name, (char *) "..") != 0) {
                             strcat(filename, (char *) "/");
-                            //printf("(0x%ld) ***köar på: %s\n", context->id, filename);
-                            //printf("0x%ld %s(%d)acquire queueMut\n", context->id, __FUNCTION__, __LINE__);
+                            printf("(0x%ld) ***köar på: %s%s\n", context->id, path,ent->d_name);
+                            printf("0x%ld %s(%d)acquire queueMut\n", context->id, __FUNCTION__, __LINE__);
                             pthread_mutex_lock(context->shared->queueMut);
                             queue_enqueue(context->shared->directories, filename);
-                            //printf("0x%ld %s(%d)release queueMut\n", context->id, __FUNCTION__, __LINE__);
+                            printf("0x%ld %s(%d)release queueMut\n", context->id, __FUNCTION__, __LINE__);
                             pthread_mutex_unlock(context->shared->queueMut);
-                            //printf("0x%ld %s(%d)acquire condMut\n", context->id, __FUNCTION__, __LINE__);
+                            printf("0x%ld %s(%d)acquire condMut\n", context->id, __FUNCTION__, __LINE__);
                             pthread_mutex_lock(context->shared->condMut);
                             pthread_cond_signal(context->shared->condition);
-                            //printf("0x%ld %s(%d)release condMut\n", context->id, __FUNCTION__, __LINE__);
+                            printf("0x%ld %s(%d)release condMut\n", context->id, __FUNCTION__, __LINE__);
                             pthread_mutex_unlock(context->shared->condMut);
-                            //printf(" (0x%ld) jämför filename: %s med filter: %s\n", context->id, path, context->shared->filter);
-                            if (strstr(filename, context->shared->filter) != NULL){ // todo kolla om filtret är enabled{
+                            printf(" (0x%ld) jämför filename: %s med filter: %s\n", context->id, path, context->shared->filter);
+                            if (strstr(ent->d_name, context->shared->filter) != NULL){ // todo kolla om filtret är enabled{
                                 printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->filter, path, ent->d_name);
                             }
                             continue;
@@ -245,7 +245,7 @@ void* search(void* args){
                     else if(S_ISREG(st.st_mode)){
                         printf ("(0x%lx) Type: File\n", context->id);        //todo skriva ut resultat korrekt
                         printf(" (0x%lx) jämför filename: %s med filter: %s\n", context->id, filename, context->shared->filter);
-                        if (strstr(filename, context->shared->filter) != NULL){ // todo kolla om filtret är enabled{
+                        if (strstr(ent->d_name, context->shared->filter) != NULL){ // todo kolla om filtret är enabled{
                             printf("(0x%lx) TRÄFF: %s in %s%s\n", context->id, context->shared->filter, path, ent->d_name);
                         }
 
