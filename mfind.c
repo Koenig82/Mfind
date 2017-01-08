@@ -116,7 +116,8 @@ int main(int argc, char *argv[]) {
 
     //print each thread's individual workload
     for(index = 0; (unsigned int)index < nrthr; index++){
-        printf("\nThread: %ld Reads: %d",context[index].id ,context[index].searched);
+        printf("\nThread: %ld Reads: %d",
+               context[index].id ,context[index].searched);
     }
     //free memory
     pthread_mutex_destroy(&qMutex);
@@ -153,21 +154,17 @@ void* search(void* args){
             //...and you are the last thread:
             if((unsigned int)*context->shared->waitLock >=
                     (*context->shared->nrOfThreads - 1)){
-                //set broadcast to all waiting threads and set running to false
+                //...broadcast to all waiting threads and set running to false
                 context->shared->running = false;
                 pthread_cond_broadcast(context->shared->condition);
                 pthread_mutex_unlock(context->shared->condMut);
                 return NULL;
             //...and you are not the last thread:
             }else{
-                //go to wating status
+                //...go to wating status
                 *context->shared->waitLock = (*context->shared->waitLock + 1);
-                bool c = true;
                 //**Waiting status loop**
-                while (c){
-                    pthread_mutex_lock(context->shared->queueMut);
-                    c = queue_isEmpty(context->shared->directories);
-                    pthread_mutex_unlock(context->shared->queueMut);
+                while (true){
                     //threads in waiting check the queue again if signaled
                     //unless the last thread has set the global running
                     //parameter off
@@ -175,11 +172,6 @@ void* search(void* args){
                                       context->shared->condMut);
                     *context->shared->waitLock =
                             (*context->shared->waitLock - 1);
-                    if (!context->shared->running) {
-                        //thread exit
-                        pthread_mutex_unlock(context->shared->condMut);
-                        break;
-                    }
                     //thread continue work
                     pthread_mutex_unlock(context->shared->condMut);
                     break;
@@ -188,7 +180,8 @@ void* search(void* args){
         //if queue is not empty...
         } else{
             //...save information from queue locally and continue search
-            char* path = malloc(strlen(queue_front(context->shared->directories)) + 1);
+            char* path = malloc(strlen(
+                    queue_front(context->shared->directories)) + 1);
             strcpy(path, queue_front(context->shared->directories));
             free(queue_front(context->shared->directories));
             queue_dequeue(context->shared->directories);
@@ -240,9 +233,12 @@ void* search(void* args){
                                     printf("\n%s%s", path, ent->d_name);
                                 }
                             }
+                            //enqueue the new folder
                             pthread_mutex_lock(context->shared->queueMut);
-                            queue_enqueue(context->shared->directories, fullpath);
+                            queue_enqueue(context->shared->directories,
+                                          fullpath);
                             pthread_mutex_unlock(context->shared->queueMut);
+                            //for each new folder found, signal a waiting thread
                             pthread_mutex_lock(context->shared->condMut);
                             pthread_cond_signal(context->shared->condition);
                             pthread_mutex_unlock(context->shared->condMut);
